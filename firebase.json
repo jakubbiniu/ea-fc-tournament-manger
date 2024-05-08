@@ -1,5 +1,1 @@
-{
-  "database": {
-    "rules": "database.rules.json"
-  }
-}
+{"database":{"rules":"database.rules.json"},"flutter":{"platforms":{"android":{"default":{"projectId":"ea-fc-tournament-manager","appId":"1:502368898550:android:5a5c45b4564dbfe8af4bd7","fileOutput":"android/app/google-services.json"}},"dart":{"lib/firebase_options.dart":{"projectId":"ea-fc-tournament-manager","configurations":{"android":"1:502368898550:android:5a5c45b4564dbfe8af4bd7","ios":"1:502368898550:ios:d15478e6bfedfd7caf4bd7","macos":"1:502368898550:ios:d15478e6bfedfd7caf4bd7","web":"1:502368898550:web:0d3440170747f8e3af4bd7","windows":"1:502368898550:web:124722cf24838b69af4bd7"}}}}}}
