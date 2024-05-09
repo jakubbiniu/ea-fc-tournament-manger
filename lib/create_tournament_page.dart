@@ -6,6 +6,7 @@ import 'dart:math';
 import 'tournament_details_page.dart';
 
 class CreateTournamentPage extends StatefulWidget {
+
   @override
   _CreateTournamentPageState createState() => _CreateTournamentPageState();
 }
@@ -14,7 +15,6 @@ class _CreateTournamentPageState extends State<CreateTournamentPage> {
   final _formKey = GlobalKey<FormState>();
   final _dbRef = FirebaseDatabase.instance.ref();
   DateTime? _tournamentDate;
-  String? _location;
   bool _isOnline = false;
   List<String> _players = [];
   TextEditingController _tournamentNameController = TextEditingController();
@@ -126,8 +126,6 @@ class _CreateTournamentPageState extends State<CreateTournamentPage> {
       matchesRef.push().set(match);
     }
   }
-}
-
 
 
   @override
