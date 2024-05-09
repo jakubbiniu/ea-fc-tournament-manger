@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
 import 'login_page.dart';
+import 'tournaments_tabs_page.dart';
 
 class WelcomePage extends StatelessWidget {
   final User user;
@@ -12,7 +13,7 @@ class WelcomePage extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Welcome'),
+        title: const Text('EA FC TOURNAMENT MANAGER'),
         actions: [
           IconButton(
             icon: Icon(Icons.logout),
@@ -35,9 +36,7 @@ class WelcomePage extends StatelessWidget {
           ),
         ],
       ),
-      body: Center(
-        child: Text('Welcome, ${user.displayName ?? user.email}!'), // Wyświetl nick użytkownika lub adres e-mail, jeśli nick nie jest dostępny
-      ),
+      body: TournamentTabsPage(userId: user.email!),
     );
   }
 }
