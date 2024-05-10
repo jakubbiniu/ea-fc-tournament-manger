@@ -2,11 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:firebase_database/firebase_database.dart';
 import 'package:intl/intl.dart';
 import 'dart:math';
-
+import 'package:latlong2/latlong.dart';
+import 'package:geocoding/geocoding.dart';
 import 'tournament_details_page.dart';
+import 'select_location_screen.dart';
 
 class CreateTournamentPage extends StatefulWidget {
-
   @override
   _CreateTournamentPageState createState() => _CreateTournamentPageState();
 }
@@ -23,7 +24,12 @@ class _CreateTournamentPageState extends State<CreateTournamentPage> {
   TextEditingController _userController = TextEditingController();
   TextEditingController _nameController = TextEditingController();
   TextEditingController _phoneController = TextEditingController();
+  LatLng? _selectedLocation;
 
+  @override
+  void initState() {
+    super.initState();
+  }
 
   void _addPlayerByEmailOrUsername() async {
     DatabaseReference usersRef = _dbRef.child('users');
@@ -57,7 +63,6 @@ class _CreateTournamentPageState extends State<CreateTournamentPage> {
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Wystąpił błąd podczas wyszukiwania użytkownika")));
     });
   }
-
 
   void _showAddGuestDialog() {
     showDialog(
@@ -127,6 +132,41 @@ class _CreateTournamentPageState extends State<CreateTournamentPage> {
     }
   }
 
+  void _openMapAndSelectLocation() async {
+    if (_isOnline) return;
+
+    LatLng? initialLocation;
+
+    if (_locationController.text.isNotEmpty) {
+      try {
+        List<Location> locations = await locationFromAddress(_locationController.text);
+        if (locations.isNotEmpty) {
+          initialLocation = LatLng(locations.first.latitude, locations.first.longitude);
+        }
+      } catch (e) {
+        ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text("Nie udało się ustalić współrzędnych z adresu"))
+        );
+        return;
+      }
+    }
+
+    final LatLng? selectedLocation = await Navigator.push(
+      context,
+      MaterialPageRoute(builder: (context) => SelectLocationScreen(initialLocation: initialLocation)),
+    );
+
+    if (selectedLocation != null) {
+      _selectedLocation = selectedLocation;
+      List<Placemark> placemarks = await placemarkFromCoordinates(selectedLocation.latitude, selectedLocation.longitude);
+      String formattedAddress = "${placemarks.first.locality}, ${placemarks.first.street}";
+      setState(() {
+        _locationController.text = formattedAddress;
+        _selectedLocation = selectedLocation;
+      });
+    }
+  }
+
 
   @override
   Widget build(BuildContext context) {
@@ -189,12 +229,6 @@ class _CreateTournamentPageState extends State<CreateTournamentPage> {
               },
 
             ),
-            TextFormField(
-              controller: _locationController,
-              decoration: InputDecoration(labelText: 'Miejsce turnieju'),
-              validator: (value) => _isOnline ? null : (value!.isEmpty ? 'Proszę wprowadzić miejsce turnieju' : null),
-              enabled: !_isOnline,
-            ),
             SwitchListTile(
               title: Text('Turniej online'),
               value: _isOnline,
@@ -204,6 +238,14 @@ class _CreateTournamentPageState extends State<CreateTournamentPage> {
                   if (value) _locationController.clear();
                 });
               },
+            ),
+            IgnorePointer(
+              ignoring: _isOnline,
+              child: ListTile(
+                title: Text('Wybierz lokalizacje turnieju'),
+                subtitle: Text(_locationController.text.isEmpty ? 'Brak wybranej lokalizacji' : _locationController.text),
+                onTap: _openMapAndSelectLocation,
+              ),
             ),
             TextFormField(
               controller: _userController,
@@ -232,7 +274,7 @@ class _CreateTournamentPageState extends State<CreateTournamentPage> {
                   newRef.set({
                     'name': _tournamentNameController.text,
                     'date': _tournamentDate!.millisecondsSinceEpoch,
-                    'location': _isOnline ? 'Online' : _locationController.text,
+                    'location': _isOnline ? 'Online' : "${_selectedLocation!.latitude}, ${_selectedLocation!.longitude}",
                     'players': _players,
                     'ended': false
                   }).then((_) {

@@ -45,5 +45,16 @@
 	<true/>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
+	<key>NSLocationWhenInUseUsageDescription</key>
+    <string>We need access to your location for navigation purposes</string>
+    <key>NSLocationAlwaysUsageDescription</key>
+    <string>We need access to your location for background location tracking</string>
+    <key>LSApplicationQueriesSchemes</key>
+    <array>
+        <string>https</string>
+        <string>http</string>
+        <string>tel</string>
+        <string>mailto</string>
+    </array>
 </dict>
 </plist>
