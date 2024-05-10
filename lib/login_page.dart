@@ -28,7 +28,7 @@ class _LoginPageState extends State<LoginPage> {
         email: _emailController.text,
         password: _passwordController.text,
       );
-      // Jeśli logowanie powiodło się, przejdź do kolejnego ekranu
+
       if (userCredential.user != null) {
         Navigator.pushReplacement(
           context,
@@ -38,9 +38,12 @@ class _LoginPageState extends State<LoginPage> {
         );
       }
     } catch (e) {
-      // Obsłuż błąd logowania
-      print('Sign in error: $e');
-      // Tutaj możesz wyświetlić komunikat o błędzie dla użytkownika
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Nie udało się zalogować'),
+          duration: Duration(seconds: 3), // Czas wyświetlania komunikatu
+        ),
+      );
     }
   }
 
@@ -48,7 +51,7 @@ class _LoginPageState extends State<LoginPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Login'),
+        title: const Text('Logowanie'),
       ),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
@@ -61,12 +64,12 @@ class _LoginPageState extends State<LoginPage> {
             ),
             TextField(
               controller: _passwordController,
-              decoration: InputDecoration(labelText: 'Password'),
+              decoration: InputDecoration(labelText: 'Hasło'),
               obscureText: true,
             ),
             ElevatedButton(
               onPressed: _signInWithEmailAndPassword,
-              child: const Text('Login'),
+              child: const Text('Zaloguj się'),
             ),
             TextButton(
               onPressed: () {
@@ -78,7 +81,7 @@ class _LoginPageState extends State<LoginPage> {
                   ),
                 );
               },
-              child: const Text('Create Account'),
+              child: const Text('Utwórz konto'),
             ),
           ],
         ),
