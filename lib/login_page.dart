@@ -1,3 +1,4 @@
+import 'package:ea_fc_tournament_manager/create_tournament_page_guest.dart';
 import 'package:ea_fc_tournament_manager/welcome_page.dart';
 import 'package:firebase_database/firebase_database.dart';
 import 'package:flutter/material.dart';
@@ -73,7 +74,6 @@ class _LoginPageState extends State<LoginPage> {
             ),
             TextButton(
               onPressed: () {
-                // Przejdź do ekranu tworzenia konta
                 Navigator.push(
                   context,
                   MaterialPageRoute(
@@ -82,6 +82,17 @@ class _LoginPageState extends State<LoginPage> {
                 );
               },
               child: const Text('Utwórz konto'),
+            ),
+            TextButton(
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => CreateTournamentPageGuest(),
+                  ),
+                );
+              },
+              child: const Text('Zagraj pojedynczy turniej jako gość'),
             ),
           ],
         ),
