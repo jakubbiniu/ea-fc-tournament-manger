@@ -1,3 +1,5 @@
+import 'dart:developer';
+
 import 'package:ea_fc_tournament_manager/create_tournament_page_guest.dart';
 import 'package:ea_fc_tournament_manager/welcome_page.dart';
 import 'package:firebase_database/firebase_database.dart';
@@ -5,6 +7,8 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
 import 'create_account_page.dart';
+import 'tournament_details_page_guest.dart';
+import 'database_helper.dart';
 
 class LoginPage extends StatefulWidget {
   final FirebaseAuth auth;
@@ -77,7 +81,7 @@ class _LoginPageState extends State<LoginPage> {
                 Navigator.push(
                   context,
                   MaterialPageRoute(
-                    builder: (context) => CreateAccountPage(auth: widget.auth, databaseRef: widget.databaseRef,),
+                    builder: (context) => CreateAccountPage(auth: widget.auth, databaseRef: widget.databaseRef),
                   ),
                 );
               },
@@ -94,9 +98,42 @@ class _LoginPageState extends State<LoginPage> {
               },
               child: const Text('Zagraj pojedynczy turniej jako gość'),
             ),
+            Expanded(
+              child: StreamBuilder<List<Map<String, dynamic>>>(
+                stream: DatabaseHelper.instance.watchAllTournaments(),
+                builder: (context, snapshot) {
+                  if (snapshot.connectionState == ConnectionState.waiting) {
+                    return Center(child: CircularProgressIndicator());
+                  }
+                  if (snapshot.data == null || snapshot.data!.isEmpty) {
+                    return SizedBox.shrink();
+                  }
+                  return ListView.builder(
+                    itemCount: snapshot.data!.length,
+                    itemBuilder: (context, index) {
+                      var tournament = snapshot.data![index];
+                      return ListTile(
+                        title: Text(tournament['name'] ?? 'Bez nazwy'),
+                        trailing: Icon(Icons.arrow_forward, color: Colors.blue),
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => TournamentDetailsPageGuest(tournamentId: tournament['id']),
+                            ),
+                          );
+                        },
+                      );
+                    },
+                  );
+                },
+              ),
+            ),
           ],
         ),
       ),
     );
   }
+
+
 }

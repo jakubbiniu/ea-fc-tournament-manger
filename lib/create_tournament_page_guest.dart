@@ -1,8 +1,5 @@
-import 'package:ea_fc_tournament_manager/login_page.dart';
-import 'package:ea_fc_tournament_manager/test_page.dart';
 import 'package:ea_fc_tournament_manager/tournament_details_page_guest.dart';
 import 'package:flutter/material.dart';
-import 'package:sqflite/sqflite.dart';
 import 'dart:math';
 import 'database_helper.dart'; // Import naszej klasy pomocniczej dla SQLite
 
@@ -13,11 +10,10 @@ class CreateTournamentPageGuest extends StatefulWidget {
 
 class _CreateTournamentPageGuestState extends State<CreateTournamentPageGuest> {
   final _formKey = GlobalKey<FormState>();
-  final dbHelper = DatabaseHelper.instance; // Wykorzystujemy naszą instancję klasy pomocniczej do obsługi bazy SQLite
-  final db = DatabaseHelper.instance.db;
+  final dbHelper = DatabaseHelper.instance;
   List<String> _players = [];
+  final TextEditingController _tournamentNameController = TextEditingController();
   TextEditingController _nameController = TextEditingController();
-  TextEditingController _errorController = TextEditingController();
 
   @override
   void initState() {
@@ -49,7 +45,7 @@ class _CreateTournamentPageGuestState extends State<CreateTournamentPageGuest> {
                 onPressed: () {
                   if (_nameController.text.isNotEmpty) {
                     setState(() {
-                      _players.add('${_nameController.text}');
+                      _players.add(_nameController.text);
                       _nameController.clear();
                       Navigator.pop(context);
                     });
@@ -64,35 +60,6 @@ class _CreateTournamentPageGuestState extends State<CreateTournamentPageGuest> {
     );
   }
 
-  void createMatches(int tournamentId, List<String> players) async {
-    List<Map<String, dynamic>> matches = [];
-    Random random = Random();
-
-    for (int i = 0; i < players.length; i++) {
-      for (int j = i + 1; j < players.length; j++) {
-        matches.add({
-          'player1': players[i],
-          'player2': players[j],
-          'score1': 0,
-          'score2': 0,
-          'completed': false,
-        });
-      }
-    }
-
-    matches.shuffle(random);
-    for (var match in matches) {
-      await dbHelper.insertMatch(tournamentId, match); // Dodajemy mecz do bazy danych SQLite
-    }
-  }
-
-  Future<bool> isAnyDataInDatabase() async {
-    Database db = await DatabaseHelper.instance.db;
-    List<Map<String, dynamic>> result = await db.rawQuery('SELECT COUNT(*) as count FROM tournaments');
-    int count = Sqflite.firstIntValue(result)!;
-    return count > 0;
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -102,6 +69,12 @@ class _CreateTournamentPageGuestState extends State<CreateTournamentPageGuest> {
         child: ListView(
           padding: EdgeInsets.all(16),
           children: <Widget>[
+            TextField(
+              controller: _tournamentNameController,
+              decoration: const InputDecoration(
+                labelText: 'Nazwa turnieju'
+              ),
+            ),
             ElevatedButton(
               onPressed: _showAddGuestDialog,
               child: Text('Dodaj gracza'),
@@ -113,33 +86,26 @@ class _CreateTournamentPageGuestState extends State<CreateTournamentPageGuest> {
                 onPressed: () => setState(() => _players.remove(player)),
               ),
             )).toList(),
-            TextField(
-              controller: _errorController,
-            ),
             ElevatedButton(
               onPressed: () async {
-                try {
-                  int tournamentId = await dbHelper.createTournament(_players);
-                  _errorController.text = tournamentId.toString();
-
-                  // if (_formKey.currentState!.validate()) {
-                  //   dbHelper.createTournament(_players).then((tournamentId) {
-                  //     createMatches(tournamentId, _players);
-                  //     Navigator.push(
-                  //       context,
-                  //       MaterialPageRoute(
-                  //         builder: (context) => TestPage(),
-                  //       ),
-                  //     );
-                  //   });
-                  // }
-                } catch (e) {
-                  // _errorController.text = "Wystąpił błąd: $e";
-                  ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Wystąpił błąd: $e")));
+                if (_formKey.currentState!.validate()) {
+                  try {
+                    int tournamentId = await dbHelper.createTournament(_tournamentNameController.text, _players);
+                    await dbHelper.createMatches(tournamentId, _players);
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => TournamentDetailsPageGuest(tournamentId: tournamentId),
+                      ),
+                    );
+                  } catch (e) {
+                    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Wystąpił błąd: $e")));
+                  }
                 }
               },
               child: Text('Utwórz turniej'),
             ),
+
           ],
         ),
       ),

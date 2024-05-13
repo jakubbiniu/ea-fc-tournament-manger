@@ -2,12 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:firebase_database/firebase_database.dart';
 import 'package:intl/intl.dart';
 
-import 'tournament_info_page.dart';
-import 'tournament_current_match_page.dart';
-import 'tournament_table_page.dart';
+import 'tournament_info_page_guest.dart';
+import 'tournament_current_match_page_guest.dart';
+import 'tournament_table_page_guest.dart';
 
 class TournamentDetailsPageGuest extends StatefulWidget {
-  final String tournamentId;
+  final int tournamentId;
 
   TournamentDetailsPageGuest({required this.tournamentId});
 
@@ -47,9 +47,9 @@ class _TournamentDetailsPageGuestState extends State<TournamentDetailsPageGuest>
       body: TabBarView(
         controller: _tabController,
         children: [
-          TournamentInfoPage(tournamentId: widget.tournamentId),
-          TournamentCurrentMatchPage(tournamentId: widget.tournamentId),
-          TournamentTablePage(tournamentId: widget.tournamentId)
+          TournamentInfoPageGuest(tournamentId: widget.tournamentId),
+          TournamentCurrentMatchPageGuest(tournamentId: widget.tournamentId),
+          TournamentTablePageGuest(tournamentId: widget.tournamentId)
         ],
       ),
     );
