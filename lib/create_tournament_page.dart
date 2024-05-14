@@ -109,24 +109,59 @@ class _CreateTournamentPageState extends State<CreateTournamentPage> {
     );
   }
 
-  void createMatches(String tournamentId, List<String> players) {
-    DatabaseReference matchesRef = _dbRef.child('tournaments').child(tournamentId).child('matches');
-    List<Map<String, dynamic>> matches = [];
-    Random random = Random();
+  // void createMatchess(String tournamentId, List<String> players) {
+  //   DatabaseReference matchesRef = _dbRef.child('tournaments').child(tournamentId).child('matches');
+  //   List<Map<String, dynamic>> matches = [];
+  //   Random random = Random();
+  //
+  //   for (int i = 0; i < players.length; i++) {
+  //     for (int j = i + 1; j < players.length; j++) {
+  //       matches.add({
+  //         'player1': players[i],
+  //         'player2': players[j],
+  //         'score1': 0,
+  //         'score2': 0,
+  //         'completed': false,
+  //       });
+  //     }
+  //   }
+  //
+  //   matches.shuffle(random);
+  //   for (var match in matches) {
+  //     matchesRef.push().set(match);
+  //   }
+  // }
 
-    for (int i = 0; i < players.length; i++) {
-      for (int j = i + 1; j < players.length; j++) {
+  void createMatches(String tournamentId, List<String> players) {
+    DatabaseReference matchesRef = _dbRef.child('tournaments').child(
+        tournamentId).child('matches');
+    List<Map<String, dynamic>> matches = [];
+
+    List<List<List<String>>> rounds = [];
+    int numRounds = players.length - 1;
+
+    for (int i = 0; i < numRounds; i++) {
+      List<List<String>> roundMatches = [];
+      if (i > 0) {
+        players.insert(1, players.removeAt(players.length - 1));
+      }
+      for (int j = 0; j < players.length / 2; j++) {
+        roundMatches.add([players[j], players[players.length - 1 - j]]);
+      }
+      rounds.add(roundMatches);
+    }
+
+    for (var round in rounds) {
+      for (var match in round) {
         matches.add({
-          'player1': players[i],
-          'player2': players[j],
+          'player1': match[0],
+          'player2': match[1],
           'score1': 0,
           'score2': 0,
           'completed': false,
         });
       }
     }
-
-    matches.shuffle(random);
     for (var match in matches) {
       matchesRef.push().set(match);
     }
