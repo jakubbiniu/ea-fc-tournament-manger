@@ -95,15 +95,31 @@ class DatabaseHelper {
   Future<void> createMatches(int tournamentId, List<String> players) async {
     var db = await database;
     List<Map<String, dynamic>> matches = [];
-    Random random = Random();
     int matchId = 1;
 
-    for (int i = 0; i < players.length; i++) {
-      for (int j = i + 1; j < players.length; j++) {
+    List<List<List<String>>> rounds = [];
+    int numRounds = players.length - 1;
+
+    for (int i = 0; i < numRounds; i++) {
+      List<List<String>> roundMatches = [];
+
+      if (i > 0) {
+        players.insert(1, players.removeAt(players.length - 1));
+      }
+
+      for (int j = 0; j < players.length / 2; j++) {
+        roundMatches.add([players[j], players[players.length - 1 - j]]);
+      }
+
+      rounds.add(roundMatches);
+    }
+
+    for (var round in rounds) {
+      for (var match in round) {
         matches.add({
           'id': matchId++,
-          'player1': players[i],
-          'player2': players[j],
+          'player1': match[0],
+          'player2': match[1],
           'score1': 0,
           'score2': 0,
           'completed': false,
@@ -111,11 +127,11 @@ class DatabaseHelper {
       }
     }
 
-    matches.shuffle(random);
     for (var match in matches) {
       await insertMatch(tournamentId, match);
     }
   }
+
 
 
   Future<List<Map<String, dynamic>>> getMatchesForTournament(int tournamentId) async {
@@ -225,4 +241,13 @@ class DatabaseHelper {
     var count = await store.count(_db!);
     return count > 0;
   }
+
+  Future<List<dynamic>> getTournamentMatches(int tournamentId) async {
+    var db = await database;
+    var store = intMapStoreFactory.store('matches');
+    final finder = Finder(filter: Filter.equals('tournament_id', tournamentId));
+    var records = await store.find(db, finder: finder);
+    return records.map((snapshot) => snapshot.value as Map<String, dynamic>).toList();
+  }
+
 }
