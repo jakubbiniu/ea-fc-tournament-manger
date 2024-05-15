@@ -1,6 +1,5 @@
 import 'package:firebase_database/firebase_database.dart';
 import 'package:flutter/material.dart';
-import 'database_helper.dart';
 
 class TournamentTablePage extends StatefulWidget {
   final String tournamentId;
@@ -12,30 +11,17 @@ class TournamentTablePage extends StatefulWidget {
 }
 
 class _TournamentTablePageState extends State<TournamentTablePage> {
-  DatabaseReference get _matchesRef => FirebaseDatabase.instance.ref('tournaments/${widget.tournamentId}/matches');
+  DatabaseReference get _matchesRef =>
+      FirebaseDatabase.instance.ref('tournaments/${widget.tournamentId}/matches');
 
-
-  @override
-  void initState() {
-    super.initState();
-    makeTable();
-  }
-
-  
   Future<DataTable> makeTable(String tournamentId) async {
     List<DataRow> rows = [];
     List<Map<dynamic, dynamic>> matches = [];
-    DatabaseReference matchesRef = FirebaseDatabase.instance.ref('tournaments/$tournamentId/matches');
-    matchesRef.once().then((DataSnapshot snapshot) {
-      Map<dynamic, dynamic> values = snapshot.value;
-      if (values != null) {
-        values.forEach((key, value) {
-          matches.add(value);
-        });
-      }
-    }).catchError((error) {
-      print("Error fetching matches: $error");
-    });
+
+    DataSnapshot snapshot = await _matchesRef.get();
+    if (snapshot.exists) {
+      matches = (snapshot.value as Map).values.toList().cast<Map<dynamic, dynamic>>();
+    }
 
     Map<String, int> points = {};
     Map<String, int> goalsScored = {};
@@ -48,7 +34,7 @@ class _TournamentTablePageState extends State<TournamentTablePage> {
       int score1 = match['score1'];
       int score2 = match['score2'];
 
-      if(match['completed'] == false) {
+      if (match['completed'] == false) {
         continue;
       }
 
@@ -86,7 +72,9 @@ class _TournamentTablePageState extends State<TournamentTablePage> {
         cells: [
           DataCell(Text(player)),
           DataCell(Text(point.toString())),
-          DataCell(Text(((goalsScored[player] ?? 0) - (goalsConceded[player] ?? 0)).toString())),
+          DataCell(Text(
+              ((goalsScored[player] ?? 0) - (goalsConceded[player] ?? 0))
+                  .toString())),
         ],
       ));
     });
@@ -100,7 +88,7 @@ class _TournamentTablePageState extends State<TournamentTablePage> {
 
       int directMatchA = directMatches[(a.cells[0].child as Text).data!]?[(b.cells[0].child as Text).data!] ?? 0;
       int directMatchB = directMatches[(b.cells[0].child as Text).data!]?[(a.cells[0].child as Text).data!] ?? 0;
-      if(directMatchA != directMatchB) {
+      if (directMatchA != directMatchB) {
         return directMatchB.compareTo(directMatchA);
       }
 
@@ -113,7 +101,7 @@ class _TournamentTablePageState extends State<TournamentTablePage> {
       return int.parse((b.cells[2].child as Text).data!).compareTo(int.parse((a.cells[2].child as Text).data!));
     });
 
-    var finalTable =  DataTable(
+    return DataTable(
       columns: [
         DataColumn(label: Text("Drużyna")),
         DataColumn(label: Text("Punkty")),
@@ -121,8 +109,6 @@ class _TournamentTablePageState extends State<TournamentTablePage> {
       ],
       rows: rows,
     );
-
-    return finalTable;
   }
 
   @override
@@ -134,7 +120,7 @@ class _TournamentTablePageState extends State<TournamentTablePage> {
       body: SingleChildScrollView(
         scrollDirection: Axis.horizontal,
         child: FutureBuilder<DataTable>(
-          future: makeTable(),
+          future: makeTable(widget.tournamentId),
           builder: (context, snapshot) {
             if (snapshot.connectionState == ConnectionState.waiting) {
               return Center(child: CircularProgressIndicator());
@@ -148,7 +134,4 @@ class _TournamentTablePageState extends State<TournamentTablePage> {
       ),
     );
   }
-
-
-
 }

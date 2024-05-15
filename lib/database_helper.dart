@@ -97,36 +97,37 @@ class DatabaseHelper {
     List<Map<String, dynamic>> matches = [];
     int matchId = 1;
 
-    List<List<List<String>>> rounds = [];
+    // Add a dummy player "BYE" if the number of players is odd
+    if (players.length % 2 != 0) {
+      players.add("BYE");
+    }
+
     int numRounds = players.length - 1;
+    int halfSize = players.length ~/ 2;
 
-    for (int i = 0; i < numRounds; i++) {
-      List<List<String>> roundMatches = [];
+    List<String> teams = List.from(players);
 
-      if (i > 0) {
-        players.insert(1, players.removeAt(players.length - 1));
+    for (int round = 0; round < numRounds; round++) {
+      for (int i = 0; i < halfSize; i++) {
+        String player1 = teams[i];
+        String player2 = teams[teams.length - 1 - i];
+
+        if (player1 != "BYE" && player2 != "BYE") {
+          matches.add({
+            'id': matchId++,
+            'player1': player1,
+            'player2': player2,
+            'score1': 0,
+            'score2': 0,
+            'completed': false,
+          });
+        }
       }
-
-      for (int j = 0; j < players.length / 2; j++) {
-        roundMatches.add([players[j], players[players.length - 1 - j]]);
-      }
-
-      rounds.add(roundMatches);
+      // Rotate teams
+      teams.insert(1, teams.removeLast());
     }
 
-    for (var round in rounds) {
-      for (var match in round) {
-        matches.add({
-          'id': matchId++,
-          'player1': match[0],
-          'player2': match[1],
-          'score1': 0,
-          'score2': 0,
-          'completed': false,
-        });
-      }
-    }
-
+    // Insert matches into the database
     for (var match in matches) {
       await insertMatch(tournamentId, match);
     }

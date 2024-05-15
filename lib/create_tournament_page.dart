@@ -133,39 +133,43 @@ class _CreateTournamentPageState extends State<CreateTournamentPage> {
   // }
 
   void createMatches(String tournamentId, List<String> players) {
-    DatabaseReference matchesRef = _dbRef.child('tournaments').child(
-        tournamentId).child('matches');
+    DatabaseReference matchesRef = FirebaseDatabase.instance
+        .ref()
+        .child('tournaments')
+        .child(tournamentId)
+        .child('matches');
+
+    if (players.length % 2 != 0) {
+      players.add("BYE"); // Add a dummy player if the number of players is odd
+    }
+
     List<Map<String, dynamic>> matches = [];
-
-    List<List<List<String>>> rounds = [];
     int numRounds = players.length - 1;
+    int halfSize = players.length ~/ 2;
 
-    for (int i = 0; i < numRounds; i++) {
-      List<List<String>> roundMatches = [];
-      if (i > 0) {
-        players.insert(1, players.removeAt(players.length - 1));
+    List<String> teams = List.from(players);
+    for (int round = 0; round < numRounds; round++) {
+      for (int i = 0; i < halfSize; i++) {
+        String player1 = teams[i];
+        String player2 = teams[teams.length - 1 - i];
+        if (player1 != "BYE" && player2 != "BYE") {
+          matches.add({
+            'player1': player1,
+            'player2': player2,
+            'score1': 0,
+            'score2': 0,
+            'completed': false,
+          });
+        }
       }
-      for (int j = 0; j < players.length / 2; j++) {
-        roundMatches.add([players[j], players[players.length - 1 - j]]);
-      }
-      rounds.add(roundMatches);
+      teams.insert(1, teams.removeLast()); // Rotate teams
     }
 
-    for (var round in rounds) {
-      for (var match in round) {
-        matches.add({
-          'player1': match[0],
-          'player2': match[1],
-          'score1': 0,
-          'score2': 0,
-          'completed': false,
-        });
-      }
-    }
     for (var match in matches) {
       matchesRef.push().set(match);
     }
   }
+
 
   void _openMapAndSelectLocation() async {
     if (_isOnline) return;
