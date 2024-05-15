@@ -11,6 +11,7 @@ class TournamentCurrentMatchPage extends StatefulWidget {
 }
 
 class _TournamentCurrentMatchPageState extends State<TournamentCurrentMatchPage> {
+  final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
   TextEditingController _score1Controller = TextEditingController();
   TextEditingController _score2Controller = TextEditingController();
   DatabaseReference get _matchesRef => FirebaseDatabase.instance.ref('tournaments/${widget.tournamentId}/matches');
@@ -44,22 +45,7 @@ class _TournamentCurrentMatchPageState extends State<TournamentCurrentMatchPage>
             return Center(child: CircularProgressIndicator());
           }
           if (!snapshot.hasData || snapshot.data!.snapshot.value == null || isTournamentEnded) {
-            return Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: <Widget>[
-                  Text(isTournamentEnded ? "Turniej został zakończony." : "Nie ma już meczy do rozegrania."),
-                  if (!isTournamentEnded) ElevatedButton(
-                    onPressed: endTournament,
-                    child: Text('Zakończ turniej'),
-                  ),
-                  ElevatedButton(
-                    onPressed: () => Navigator.pop(context),
-                    child: Text('Powrót'),
-                  ),
-                ],
-              ),
-            );
+            return buildNoMatchesView();
           }
 
           Map<dynamic, dynamic> matches = Map<dynamic, dynamic>.from(snapshot.data!.snapshot.value as Map);
@@ -69,25 +55,100 @@ class _TournamentCurrentMatchPageState extends State<TournamentCurrentMatchPage>
           _score1Controller.text = firstMatch['score1'].toString();
           _score2Controller.text = firstMatch['score2'].toString();
 
-          return Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: <Widget>[
-              Text('Mecz: ${firstMatch['player1']} vs ${firstMatch['player2']}'),
-              TextField(
-                controller: _score1Controller,
-                decoration: InputDecoration(labelText: 'Wynik ${firstMatch['player1']}'),
-              ),
-              TextField(
-                controller: _score2Controller,
-                decoration: InputDecoration(labelText: 'Wynik ${firstMatch['player2']}'),
-              ),
-              ElevatedButton(
-                onPressed: () => updateMatch(),
-                child: Text('Zatwierdź wynik'),
-              ),
-            ],
-          );
+          return buildMatchView(firstMatch);
         },
+      ),
+    );
+  }
+
+  Widget buildNoMatchesView() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: <Widget>[
+          Text(isTournamentEnded ? "Turniej został zakończony." : "Nie ma już meczy do rozegrania."),
+          if (!isTournamentEnded)
+            ElevatedButton(
+              onPressed: endTournament,
+              child: Text('Zakończ turniej'),
+            ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text('Powrót'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget buildMatchView(Map<dynamic, dynamic> match) {
+    return Form(
+      key: _formKey,
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: <Widget>[
+          Text('Mecz: ${match['player1']} vs ${match['player2']}'),
+          TextFormField(
+            controller: _score1Controller,
+            decoration: InputDecoration(labelText: 'Wynik ${match['player1']}'),
+            validator: (value) {
+              if (value == null || value.isEmpty || int.tryParse(value) == null || int.parse(value) < 0) {
+                return 'Wprowadź poprawnie wyniki (nieujemna liczba całkowita)';
+              }
+              return null;
+            },
+          ),
+          TextFormField(
+            controller: _score2Controller,
+            decoration: InputDecoration(labelText: 'Wynik ${match['player2']}'),
+            validator: (value) {
+              if (value == null || value.isEmpty || int.tryParse(value) == null || int.parse(value) < 0) {
+                return 'Wprowadź poprawnie wyniki (nieujemna liczba całkowita)';
+              }
+              return null;
+            },
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              if (_formKey.currentState!.validate()) {
+                bool confirm = await showDialog(
+                  context: context,
+                  builder: (BuildContext context) {
+                    return AlertDialog(
+                      title: Text("Potwierdzenie"),
+                      content: Text("Czy na pewno chcesz zatwierdzić wynik?"),
+                      actions: [
+                        TextButton(
+                          onPressed: () {
+                            Navigator.of(context).pop(false);
+                          },
+                          child: Text("Nie"),
+                        ),
+                        TextButton(
+                          onPressed: () {
+                            Navigator.of(context).pop(true);
+                          },
+                          child: Text("Tak"),
+                        ),
+                      ],
+                    );
+                  },
+                );
+                if (confirm) {
+                  updateMatch();
+                }
+              } else {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text('Wprowadź poprawnie wyniki'),
+                    duration: Duration(seconds: 2),
+                  ),
+                );
+              }
+            },
+            child: Text('Zatwierdź wynik'),
+          ),
+        ],
       ),
     );
   }

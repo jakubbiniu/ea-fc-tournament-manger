@@ -109,28 +109,6 @@ class _CreateTournamentPageState extends State<CreateTournamentPage> {
     );
   }
 
-  // void createMatchess(String tournamentId, List<String> players) {
-  //   DatabaseReference matchesRef = _dbRef.child('tournaments').child(tournamentId).child('matches');
-  //   List<Map<String, dynamic>> matches = [];
-  //   Random random = Random();
-  //
-  //   for (int i = 0; i < players.length; i++) {
-  //     for (int j = i + 1; j < players.length; j++) {
-  //       matches.add({
-  //         'player1': players[i],
-  //         'player2': players[j],
-  //         'score1': 0,
-  //         'score2': 0,
-  //         'completed': false,
-  //       });
-  //     }
-  //   }
-  //
-  //   matches.shuffle(random);
-  //   for (var match in matches) {
-  //     matchesRef.push().set(match);
-  //   }
-  // }
 
   void createMatches(String tournamentId, List<String> players) {
     DatabaseReference matchesRef = FirebaseDatabase.instance

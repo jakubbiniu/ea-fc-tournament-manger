@@ -27,6 +27,7 @@ class _TournamentTablePageState extends State<TournamentTablePage> {
     Map<String, int> goalsScored = {};
     Map<String, int> goalsConceded = {};
     Map<String, Map<String, int>> directMatches = {};
+    Map<String, int> matchesPlayed = {};
 
     for (var match in matches) {
       String player1 = match['player1'];
@@ -37,6 +38,9 @@ class _TournamentTablePageState extends State<TournamentTablePage> {
       if (match['completed'] == false) {
         continue;
       }
+
+      matchesPlayed[player1] = (matchesPlayed[player1] ?? 0) + 1;
+      matchesPlayed[player2] = (matchesPlayed[player2] ?? 0) + 1;
 
       if (score1 > score2) {
         points[player1] = (points[player1] ?? 0) + 3;
@@ -71,6 +75,7 @@ class _TournamentTablePageState extends State<TournamentTablePage> {
       rows.add(DataRow(
         cells: [
           DataCell(Text(player)),
+          DataCell(Text(matchesPlayed[player].toString())),
           DataCell(Text(point.toString())),
           DataCell(Text(
               ((goalsScored[player] ?? 0) - (goalsConceded[player] ?? 0))
@@ -104,8 +109,9 @@ class _TournamentTablePageState extends State<TournamentTablePage> {
     return DataTable(
       columns: [
         DataColumn(label: Text("Drużyna")),
-        DataColumn(label: Text("Punkty")),
-        DataColumn(label: Text("Bilans bramek")),
+        DataColumn(label: Text("M")),
+        DataColumn(label: Text("PKT")),
+        DataColumn(label: Text("RB")),
       ],
       rows: rows,
     );

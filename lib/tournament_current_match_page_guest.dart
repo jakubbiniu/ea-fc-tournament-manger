@@ -13,6 +13,7 @@ class TournamentCurrentMatchPageGuest extends StatefulWidget {
 }
 
 class _TournamentCurrentMatchPageGuestState extends State<TournamentCurrentMatchPageGuest> {
+  final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
   TextEditingController _score1Controller = TextEditingController();
   TextEditingController _score2Controller = TextEditingController();
   bool isTournamentEnded = false;
@@ -49,7 +50,9 @@ class _TournamentCurrentMatchPageGuestState extends State<TournamentCurrentMatch
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: currentMatch == null || isTournamentEnded ? buildNoMatchesView() : buildMatchView(),
+      body: currentMatch == null || isTournamentEnded
+          ? buildNoMatchesView()
+          : buildMatchView(),
     );
   }
 
@@ -58,12 +61,14 @@ class _TournamentCurrentMatchPageGuestState extends State<TournamentCurrentMatch
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: <Widget>[
-          Text(isTournamentEnded ? "Turniej został zakończony." : "Nie ma już meczy do rozegrania."),
+          Text(isTournamentEnded
+              ? "Turniej został zakończony."
+              : "Nie ma już meczy do rozegrania."),
           ElevatedButton(
             onPressed: () => Navigator.pushReplacement(
-              context,
-              MaterialPageRoute(builder: (context) => LoginPage(auth: FirebaseAuth.instance))
-            ),
+                context,
+                MaterialPageRoute(
+                    builder: (context) => LoginPage(auth: FirebaseAuth.instance))),
             child: Text('Powrót'),
           ),
           if (!isTournamentEnded)
@@ -77,32 +82,95 @@ class _TournamentCurrentMatchPageGuestState extends State<TournamentCurrentMatch
   }
 
   Widget buildMatchView() {
-    return Column(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: <Widget>[
-        Text('Mecz: ${currentMatch!['player1']} vs ${currentMatch!['player2']}'),
-        TextField(
-          controller: _score1Controller,
-          decoration: InputDecoration(labelText: 'Wynik ${currentMatch!['player1']}'),
-        ),
-        TextField(
-          controller: _score2Controller,
-          decoration: InputDecoration(labelText: 'Wynik ${currentMatch!['player2']}'),
-        ),
-        ElevatedButton(
-          onPressed: () => updateMatch(),
-          child: Text('Zatwierdź wynik'),
-        ),
-      ],
+    return Form(
+      key: _formKey,
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: <Widget>[
+          Text('Mecz: ${currentMatch!['player1']} vs ${currentMatch!['player2']}'),
+          TextFormField(
+            key: Key('score1'),
+            controller: _score1Controller,
+            decoration: InputDecoration(labelText: 'Wynik ${currentMatch!['player1']}'),
+            validator: (value) {
+              if (value == null ||
+                  value.isEmpty ||
+                  int.tryParse(value) == null ||
+                  int.parse(value) < 0) {
+                return 'Wprowadź poprawnie wyniki (nieujemna liczba całkowita)';
+              }
+              return null;
+            },
+          ),
+          TextFormField(
+            key: Key('score2'),
+            controller: _score2Controller,
+            decoration: InputDecoration(labelText: 'Wynik ${currentMatch!['player2']}'),
+            validator: (value) {
+              if (value == null ||
+                  value.isEmpty ||
+                  int.tryParse(value) == null ||
+                  int.parse(value) < 0) {
+                return 'Wprowadź poprawnie wyniki (nieujemna liczba całkowita)';
+              }
+              return null;
+            },
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              if (_formKey.currentState!.validate()) {
+                bool confirm = await showDialog(
+                  context: context,
+                  builder: (BuildContext context) {
+                    return AlertDialog(
+                      title: Text("Potwierdzenie"),
+                      content: Text("Czy na pewno chcesz zatwierdzić wynik?"),
+                      actions: [
+                        TextButton(
+                          onPressed: () {
+                            Navigator.of(context).pop(false);
+                          },
+                          child: Text("Nie"),
+                        ),
+                        TextButton(
+                          onPressed: () {
+                            Navigator.of(context).pop(true);
+                          },
+                          child: Text("Tak"),
+                        ),
+                      ],
+                    );
+                  },
+                );
+                if (confirm) {
+                  updateMatch();
+                }
+              } else {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text('Wprowadź poprawnie wyniki'),
+                    duration: Duration(seconds: 2),
+                  ),
+                );
+              }
+            },
+            child: Text('Zatwierdź wynik'),
+          ),
+        ],
+      ),
     );
   }
 
   void updateMatch() async {
-    await DatabaseHelper.instance.updateMatchScore(currentMatch!['id'],currentMatch!['tournament_id'], {
-      'score1': int.parse(_score1Controller.text),
-      'score2': int.parse(_score2Controller.text),
-      'completed': true,
-    });
+    await DatabaseHelper.instance.updateMatchScore(
+      currentMatch!['id'],
+      currentMatch!['tournament_id'],
+      {
+        'score1': int.parse(_score1Controller.text),
+        'score2': int.parse(_score2Controller.text),
+        'completed': true,
+      },
+    );
     fetchCurrentMatch();
   }
 
@@ -114,9 +182,9 @@ class _TournamentCurrentMatchPageGuestState extends State<TournamentCurrentMatch
           isTournamentEnded = true;
         });
         Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (context) => LoginPage(auth: FirebaseAuth.instance))
-        );
+            context,
+            MaterialPageRoute(
+                builder: (context) => LoginPage(auth: FirebaseAuth.instance)));
       }
     } catch (e) {
       if (mounted) {
@@ -129,5 +197,4 @@ class _TournamentCurrentMatchPageGuestState extends State<TournamentCurrentMatch
       }
     }
   }
-
 }
