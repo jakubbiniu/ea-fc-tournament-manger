@@ -27,7 +27,7 @@ class UpcomingTournamentsPage extends StatelessWidget {
           List<Widget> tournamentWidgets = [];
           tournaments.forEach((key, value) {
             List<dynamic> players = value['players'];
-            bool isUserInTournament = players.any((player) => player['id'] == userId);
+            bool isUserInTournament = players.any((player) => player['id'] == userId || player['second_id'] == userId);
             if (isUserInTournament) {
               DateTime date = DateTime.fromMillisecondsSinceEpoch(value['date']);
               tournamentWidgets.add(ListTile(

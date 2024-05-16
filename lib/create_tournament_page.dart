@@ -49,7 +49,7 @@ class _CreateTournamentPageState extends State<CreateTournamentPage> {
           if (userData['nickname'] == user || userData['email'] == user) {
             String userNickname = userData['nickname'];
             setState(() {
-              _players.add({'name': userNickname, 'id': userId});
+              _players.add({'name': userNickname, 'id': userData['email']});
               _userController.clear();
             });
             _foundUser = true;
@@ -189,18 +189,26 @@ class _CreateTournamentPageState extends State<CreateTournamentPage> {
       if (i + 1 < shuffledPlayers.length) {
         var player1 = shuffledPlayers[i];
         var player2 = shuffledPlayers[i + 1];
-        String teamId = player1['id'] ?? player2['id'];
+        String? teamId = player1['id'] ?? player2['id'];
+        String? secondId = player1['id'] != null && player2['id'] != null ? player2['id'] : null;
+
         teams.add({
           'name': '${player1['name']} & ${player2['name']}',
-          'id': teamId
+          'id': teamId,
+          'second_id': secondId
         });
       } else {
-        teams.add(shuffledPlayers[i]);
+        teams.add({
+          'name': '${shuffledPlayers[i]['name']}',
+          'id': shuffledPlayers[i]['id'],
+          'second_id': null
+        });
       }
     }
 
     return teams;
   }
+
 
   @override
   Widget build(BuildContext context) {
