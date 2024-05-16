@@ -121,6 +121,7 @@ class _TournamentTablePageState extends State<TournamentTablePage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
+        automaticallyImplyLeading: false,
         title: Text("Tabela"),
       ),
       body: SingleChildScrollView(

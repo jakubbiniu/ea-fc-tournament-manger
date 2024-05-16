@@ -26,7 +26,9 @@ class UpcomingTournamentsPage extends StatelessWidget {
           Map<dynamic, dynamic> tournaments = Map<dynamic, dynamic>.from(snapshot.data!.snapshot.value as Map);
           List<Widget> tournamentWidgets = [];
           tournaments.forEach((key, value) {
-            if (value['players'].contains(userId)) {
+            List<dynamic> players = value['players'];
+            bool isUserInTournament = players.any((player) => player['id'] == userId);
+            if (isUserInTournament) {
               DateTime date = DateTime.fromMillisecondsSinceEpoch(value['date']);
               tournamentWidgets.add(ListTile(
                 title: Text(value['name']),
@@ -36,7 +38,7 @@ class UpcomingTournamentsPage extends StatelessWidget {
                   Navigator.push(
                     context,
                     MaterialPageRoute(
-                      builder: (context) => TournamentDetailsPage(tournamentId: key),
+                      builder: (context) => TournamentDetailsPage(tournamentId: key, userId: userId),
                     ),
                   );
                 },
@@ -44,10 +46,13 @@ class UpcomingTournamentsPage extends StatelessWidget {
             }
           });
 
-          return ListView(children: tournamentWidgets.isNotEmpty ? tournamentWidgets : [Center(child: Text("Nie jesteś zapisany do żadnych nadchodzących turniejów."))]);
+          return ListView(
+              children: tournamentWidgets.isNotEmpty
+                  ? tournamentWidgets
+                  : [Center(child: Text("Nie jesteś zapisany do żadnych nadchodzących turniejów."))],
+          );
         },
       ),
     );
   }
 }
-

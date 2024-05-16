@@ -75,12 +75,34 @@ class DatabaseHelper {
     var data = {
       'name': name,
       'players': players,
-      'ended': false
+      'ended': false,
+      'started': false,
+      'selectedClubs': {},
     };
     int key = await store.add(db, data);
     return key;
   }
 
+  Future<void> updateTournamentPlayerClub(int tournamentId, Map<String, String> selectedClubs) async {
+    var db = await database;
+    var store = intMapStoreFactory.store('tournaments');
+    await store.record(tournamentId).update(db, {'selectedClubs': selectedClubs});
+  }
+
+  Future<void> startTournament(int tournamentId) async {
+    var db = await database;
+    var store = intMapStoreFactory.store('tournaments');
+    await store.record(tournamentId).update(db, {'started': true});
+  }
+
+  Stream<Map<String, dynamic>> getTournamentStream(int tournamentId) {
+    var store = intMapStoreFactory.store('tournaments');
+    var finder = Finder(filter: Filter.byKey(tournamentId));
+    var query = store.query(finder: finder);
+    return query.onSnapshots(_db!).map((snapshots) {
+      return snapshots.first.value as Map<String, dynamic>;
+    });
+  }
 
   Future<void> insertMatch(int tournamentId, Map<String, dynamic> match) async {
     var db = await database;

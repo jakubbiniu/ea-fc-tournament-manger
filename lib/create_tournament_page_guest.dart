@@ -1,7 +1,7 @@
 import 'package:ea_fc_tournament_manager/tournament_details_page_guest.dart';
 import 'package:flutter/material.dart';
 import 'dart:math';
-import 'database_helper.dart'; // Import naszej klasy pomocniczej dla SQLite
+import 'database_helper.dart';
 
 class CreateTournamentPageGuest extends StatefulWidget {
   @override
@@ -14,6 +14,7 @@ class _CreateTournamentPageGuestState extends State<CreateTournamentPageGuest> {
   List<String> _players = [];
   final TextEditingController _tournamentNameController = TextEditingController();
   TextEditingController _nameController = TextEditingController();
+  bool _isTwoPersonTeams = false;
 
   @override
   void initState() {
@@ -60,6 +61,21 @@ class _CreateTournamentPageGuestState extends State<CreateTournamentPageGuest> {
     );
   }
 
+  List<String> _createTeams(List<String> players) {
+    List<String> teams = [];
+    List<String> shuffledPlayers = List.from(players)..shuffle();
+
+    for (int i = 0; i < shuffledPlayers.length; i += 2) {
+      if (i + 1 < shuffledPlayers.length) {
+        teams.add('${shuffledPlayers[i]} & ${shuffledPlayers[i + 1]}');
+      } else {
+        teams.add(shuffledPlayers[i]);
+      }
+    }
+
+    return teams;
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -72,8 +88,17 @@ class _CreateTournamentPageGuestState extends State<CreateTournamentPageGuest> {
             TextField(
               controller: _tournamentNameController,
               decoration: const InputDecoration(
-                labelText: 'Nazwa turnieju'
+                  labelText: 'Nazwa turnieju'
               ),
+            ),
+            SwitchListTile(
+              title: Text('Drużyny dwuosobowe'),
+              value: _isTwoPersonTeams,
+              onChanged: (bool value) {
+                setState(() {
+                  _isTwoPersonTeams = value;
+                });
+              },
             ),
             ElevatedButton(
               onPressed: _showAddGuestDialog,
@@ -89,9 +114,10 @@ class _CreateTournamentPageGuestState extends State<CreateTournamentPageGuest> {
             ElevatedButton(
               onPressed: () async {
                 if (_formKey.currentState!.validate()) {
+                  List<String> finalPlayers = _isTwoPersonTeams ? _createTeams(_players) : _players;
                   try {
-                    int tournamentId = await dbHelper.createTournament(_tournamentNameController.text, _players);
-                    await dbHelper.createMatches(tournamentId, _players);
+                    int tournamentId = await dbHelper.createTournament(_tournamentNameController.text, finalPlayers);
+                    await dbHelper.createMatches(tournamentId, finalPlayers);
                     Navigator.push(
                       context,
                       MaterialPageRoute(
@@ -105,7 +131,6 @@ class _CreateTournamentPageGuestState extends State<CreateTournamentPageGuest> {
               },
               child: Text('Utwórz turniej'),
             ),
-
           ],
         ),
       ),

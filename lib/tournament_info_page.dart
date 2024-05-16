@@ -30,6 +30,18 @@ class TournamentInfoPage extends StatelessWidget {
     }
   }
 
+  Future<Map<String, String>> _fetchPlayerClubs() async {
+    DatabaseReference ref = FirebaseDatabase.instance.ref('tournaments/$tournamentId/player_clubs');
+    DatabaseEvent event = await ref.once();
+    Map<String, String> playerClubs = {};
+    if (event.snapshot.value != null) {
+      Map<dynamic, dynamic> clubsMap = Map<dynamic, dynamic>.from(event.snapshot.value as Map);
+      clubsMap.forEach((key, value) {
+        playerClubs[key] = value.toString();
+      });
+    }
+    return playerClubs;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -49,43 +61,68 @@ class TournamentInfoPage extends StatelessWidget {
         bool isEnded = tournament['ended'] ?? false;
         String location = tournament['location'];
 
-        if (location.toLowerCase() == 'online') {
-          return ListView(
-            children: <Widget>[
-              ListTile(title: Text('Status: ${isEnded ? "Zakończony" : "Trwa"}')),
-              ListTile(title: Text('Nazwa: ${tournament['name']}')),
-              ListTile(title: Text('Data: ${DateFormat('yyyy-MM-dd').format(DateTime.fromMillisecondsSinceEpoch(tournament['date']))}')),
-              ListTile(title: Text('Lokalizacja: Online')),
-              ListTile(title: Text('Uczestnicy:')),
-              ...List<Widget>.from((tournament['players'] as List).map((player) => ListTile(title: Text(player.toString())))),
-            ],
-          );
-        }
+        return FutureBuilder<Map<String, String>>(
+          future: _fetchPlayerClubs(),
+          builder: (context, playerClubsSnapshot) {
+            if (!playerClubsSnapshot.hasData) {
+              return Center(child: CircularProgressIndicator());
+            }
 
-        var parts = location.split(',');
-        double lat = double.parse(parts[0]);
-        double lng = double.parse(parts[1]);
+            Map<String, String> playerClubs = playerClubsSnapshot.data!;
+            List<Widget> playerWidgets = [];
 
-        return FutureBuilder(
-            future: _getAddressFromCoordinates(lat, lng),
-            builder: (BuildContext context, AsyncSnapshot<String> addressSnapshot) {
-              String displayAddress = addressSnapshot.data ?? "Ładowanie adresu...";
+            if (tournament['players'] != null) {
+              for (var player in tournament['players']) {
+                String playerName = player['name'].toString();
+                String playerInfo = playerName;
+                if (playerClubs.containsKey(playerName)) {
+                  playerInfo = '$playerName - ${playerClubs[playerName]}';
+                }
+                playerWidgets.add(ListTile(title: Text(playerInfo)));
+              }
+            }
 
+            if (location.toLowerCase() == 'online') {
               return ListView(
                 children: <Widget>[
                   ListTile(title: Text('Status: ${isEnded ? "Zakończony" : "Trwa"}')),
                   ListTile(title: Text('Nazwa: ${tournament['name']}')),
-                  ListTile(title: Text('Data: ${DateFormat('yyyy-MM-dd').format(DateTime.fromMillisecondsSinceEpoch(tournament['date']))}')),
-                  ListTile(title: Text('Lokalizacja: $displayAddress')),
-                  ElevatedButton(
-                      onPressed: () async { _launchMapsUrl(lat, lng);},
-                      child: Text('Nawiguj')
-                  ),
+                  ListTile(title: Text('Data: ${DateFormat('yyyy-MM-dd HH:mm').format(DateTime.fromMillisecondsSinceEpoch(tournament['date']))}')),
+                  ListTile(title: Text('Lokalizacja: Online')),
                   ListTile(title: Text('Uczestnicy:')),
-                  ...List<Widget>.from((tournament['players'] as List).map((player) => ListTile(title: Text(player.toString())))),
+                  ...playerWidgets,
                 ],
               );
             }
+
+            var parts = location.split(',');
+            double lat = double.parse(parts[0]);
+            double lng = double.parse(parts[1]);
+
+            return FutureBuilder<String>(
+              future: _getAddressFromCoordinates(lat, lng),
+              builder: (BuildContext context, AsyncSnapshot<String> addressSnapshot) {
+                String displayAddress = addressSnapshot.data ?? "Ładowanie adresu...";
+
+                return ListView(
+                  children: <Widget>[
+                    ListTile(title: Text('Status: ${isEnded ? "Zakończony" : "Trwa"}')),
+                    ListTile(title: Text('Nazwa: ${tournament['name']}')),
+                    ListTile(title: Text('Data: ${DateFormat('yyyy-MM-dd HH:mm').format(DateTime.fromMillisecondsSinceEpoch(tournament['date']))}')),
+                    ListTile(title: Text('Lokalizacja: $displayAddress')),
+                    ElevatedButton(
+                      onPressed: () async {
+                        _launchMapsUrl(lat, lng);
+                      },
+                      child: Text('Nawiguj'),
+                    ),
+                    ListTile(title: Text('Uczestnicy:')),
+                    ...playerWidgets,
+                  ],
+                );
+              },
+            );
+          },
         );
       },
     );

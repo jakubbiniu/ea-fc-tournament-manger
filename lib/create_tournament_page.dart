@@ -8,6 +8,10 @@ import 'tournament_details_page.dart';
 import 'select_location_screen.dart';
 
 class CreateTournamentPage extends StatefulWidget {
+  final String userId;
+
+  CreateTournamentPage({required this.userId});
+
   @override
   _CreateTournamentPageState createState() => _CreateTournamentPageState();
 }
@@ -17,13 +21,13 @@ class _CreateTournamentPageState extends State<CreateTournamentPage> {
   final _dbRef = FirebaseDatabase.instance.ref();
   DateTime? _tournamentDate;
   bool _isOnline = false;
-  List<String> _players = [];
+  bool _isTwoPersonTeams = false;
+  List<Map<String, dynamic>> _players = [];
   TextEditingController _tournamentNameController = TextEditingController();
   TextEditingController _dateController = TextEditingController();
   TextEditingController _locationController = TextEditingController();
   TextEditingController _userController = TextEditingController();
   TextEditingController _nameController = TextEditingController();
-  TextEditingController _phoneController = TextEditingController();
   LatLng? _selectedLocation;
 
   @override
@@ -42,10 +46,10 @@ class _CreateTournamentPageState extends State<CreateTournamentPage> {
       if (data != null) {
         for (var userId in data.keys) {
           var userData = data[userId];
-          if (userData['username'] == user || userData['email'] == user) {
-            String userEmail = userData['email'];
+          if (userData['nickname'] == user || userData['email'] == user) {
+            String userNickname = userData['nickname'];
             setState(() {
-              _players.add(userEmail);
+              _players.add({'name': userNickname, 'id': userId});
               _userController.clear();
             });
             _foundUser = true;
@@ -77,10 +81,6 @@ class _CreateTournamentPageState extends State<CreateTournamentPage> {
                   controller: _nameController,
                   decoration: InputDecoration(labelText: 'Imię gościa'),
                 ),
-                TextField(
-                  controller: _phoneController,
-                  decoration: InputDecoration(labelText: 'Telefon gościa'),
-                ),
               ],
             ),
             actions: [
@@ -91,11 +91,10 @@ class _CreateTournamentPageState extends State<CreateTournamentPage> {
               TextButton(
                 child: Text('Dodaj'),
                 onPressed: () {
-                  if (_nameController.text.isNotEmpty && _phoneController.text.isNotEmpty) {
+                  if (_nameController.text.isNotEmpty) {
                     setState(() {
-                      _players.add('${_nameController.text} (${_phoneController.text})');
+                      _players.add({'name': '${_nameController.text} (Gość)', 'id': null});
                       _nameController.clear();
-                      _phoneController.clear();
                       Navigator.pop(context);
                     });
                   } else {
@@ -109,8 +108,7 @@ class _CreateTournamentPageState extends State<CreateTournamentPage> {
     );
   }
 
-
-  void createMatches(String tournamentId, List<String> players) {
+  void createMatches(String tournamentId, List<Map<String, dynamic>> players) {
     DatabaseReference matchesRef = FirebaseDatabase.instance
         .ref()
         .child('tournaments')
@@ -118,22 +116,22 @@ class _CreateTournamentPageState extends State<CreateTournamentPage> {
         .child('matches');
 
     if (players.length % 2 != 0) {
-      players.add("BYE"); // Add a dummy player if the number of players is odd
+      players.add({'name': "BYE", 'id': null}); // Add a dummy player if the number of players is odd
     }
 
     List<Map<String, dynamic>> matches = [];
     int numRounds = players.length - 1;
     int halfSize = players.length ~/ 2;
 
-    List<String> teams = List.from(players);
+    List<Map<String, dynamic>> teams = List.from(players);
     for (int round = 0; round < numRounds; round++) {
       for (int i = 0; i < halfSize; i++) {
-        String player1 = teams[i];
-        String player2 = teams[teams.length - 1 - i];
-        if (player1 != "BYE" && player2 != "BYE") {
+        var player1 = teams[i];
+        var player2 = teams[teams.length - 1 - i];
+        if (player1['name'] != "BYE" && player2['name'] != "BYE") {
           matches.add({
-            'player1': player1,
-            'player2': player2,
+            'player1': player1['name'],
+            'player2': player2['name'],
             'score1': 0,
             'score2': 0,
             'completed': false,
@@ -147,7 +145,6 @@ class _CreateTournamentPageState extends State<CreateTournamentPage> {
       matchesRef.push().set(match);
     }
   }
-
 
   void _openMapAndSelectLocation() async {
     if (_isOnline) return;
@@ -184,6 +181,26 @@ class _CreateTournamentPageState extends State<CreateTournamentPage> {
     }
   }
 
+  List<Map<String, dynamic>> _createTeams(List<Map<String, dynamic>> players) {
+    List<Map<String, dynamic>> teams = [];
+    List<Map<String, dynamic>> shuffledPlayers = List.from(players)..shuffle();
+
+    for (int i = 0; i < shuffledPlayers.length; i += 2) {
+      if (i + 1 < shuffledPlayers.length) {
+        var player1 = shuffledPlayers[i];
+        var player2 = shuffledPlayers[i + 1];
+        String teamId = player1['id'] ?? player2['id'];
+        teams.add({
+          'name': '${player1['name']} & ${player2['name']}',
+          'id': teamId
+        });
+      } else {
+        teams.add(shuffledPlayers[i]);
+      }
+    }
+
+    return teams;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -244,7 +261,6 @@ class _CreateTournamentPageState extends State<CreateTournamentPage> {
                   }
                 }
               },
-
             ),
             SwitchListTile(
               title: Text('Turniej online'),
@@ -253,6 +269,15 @@ class _CreateTournamentPageState extends State<CreateTournamentPage> {
                 setState(() {
                   _isOnline = value;
                   if (value) _locationController.clear();
+                });
+              },
+            ),
+            SwitchListTile(
+              title: Text('Drużyny dwuosobowe'),
+              value: _isTwoPersonTeams,
+              onChanged: (bool value) {
+                setState(() {
+                  _isTwoPersonTeams = value;
                 });
               },
             ),
@@ -267,7 +292,7 @@ class _CreateTournamentPageState extends State<CreateTournamentPage> {
             TextFormField(
               controller: _userController,
               decoration: InputDecoration(labelText: 'Email/Username gracza'),
-              onFieldSubmitted: (value) => _addPlayerByEmailOrUsername,
+              onFieldSubmitted: (value) => _addPlayerByEmailOrUsername(),
             ),
             ElevatedButton(
               onPressed: _addPlayerByEmailOrUsername,
@@ -278,7 +303,7 @@ class _CreateTournamentPageState extends State<CreateTournamentPage> {
               child: Text('Dodaj gościa'),
             ),
             ..._players.map((player) => ListTile(
-              title: Text(player),
+              title: Text(player['name']),
               trailing: IconButton(
                 icon: Icon(Icons.delete),
                 onPressed: () => setState(() => _players.remove(player)),
@@ -287,24 +312,25 @@ class _CreateTournamentPageState extends State<CreateTournamentPage> {
             ElevatedButton(
               onPressed: () {
                 if (_formKey.currentState!.validate()) {
+                  List<Map<String, dynamic>> finalPlayers = _isTwoPersonTeams ? _createTeams(_players) : _players;
                   DatabaseReference newRef = _dbRef.child('tournaments').push();
                   newRef.set({
                     'name': _tournamentNameController.text,
                     'date': _tournamentDate!.millisecondsSinceEpoch,
                     'location': _isOnline ? 'Online' : "${_selectedLocation!.latitude}, ${_selectedLocation!.longitude}",
-                    'players': _players,
-                    'ended': false
+                    'players': finalPlayers,
+                    'ended': false,
+                    'admin': widget.userId
                   }).then((_) {
-                    createMatches(newRef.key!, _players);
-                    Navigator.push(context, MaterialPageRoute(
-                      builder: (context) => TournamentDetailsPage(tournamentId: newRef.key!),
+                    createMatches(newRef.key!, finalPlayers);
+                    Navigator.pushReplacement(context, MaterialPageRoute(
+                      builder: (context) => TournamentDetailsPage(tournamentId: newRef.key!, userId: widget.userId),
                     ));
                   });
                 }
               },
               child: Text('Utwórz turniej'),
             ),
-
           ],
         ),
       ),

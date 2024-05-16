@@ -18,12 +18,14 @@ class _TournamentCurrentMatchPageGuestState extends State<TournamentCurrentMatch
   TextEditingController _score2Controller = TextEditingController();
   bool isTournamentEnded = false;
   Map<String, dynamic>? currentMatch;
+  Map<String, String>? selectedClubs;
 
   @override
   void initState() {
     super.initState();
     checkIfTournamentEnded();
     fetchCurrentMatch();
+    fetchSelectedClubs();
   }
 
   void checkIfTournamentEnded() async {
@@ -45,6 +47,20 @@ class _TournamentCurrentMatchPageGuestState extends State<TournamentCurrentMatch
         _score2Controller.clear();
       }
     });
+  }
+
+  void fetchSelectedClubs() async {
+    var tournamentData = await DatabaseHelper.instance.getTournamentData(widget.tournamentId);
+    setState(() {
+      selectedClubs = Map<String, String>.from(tournamentData?['selectedClubs'] ?? {});
+    });
+  }
+
+  String getPlayerWithClub(String playerName) {
+    if (selectedClubs != null && selectedClubs!.containsKey(playerName)) {
+      return '$playerName (${selectedClubs![playerName]})';
+    }
+    return playerName;
   }
 
   @override
@@ -87,11 +103,11 @@ class _TournamentCurrentMatchPageGuestState extends State<TournamentCurrentMatch
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: <Widget>[
-          Text('Mecz: ${currentMatch!['player1']} vs ${currentMatch!['player2']}'),
+          Text('Mecz: ${getPlayerWithClub(currentMatch!['player1'])} vs ${getPlayerWithClub(currentMatch!['player2'])}'),
           TextFormField(
             key: Key('score1'),
             controller: _score1Controller,
-            decoration: InputDecoration(labelText: 'Wynik ${currentMatch!['player1']}'),
+            decoration: InputDecoration(labelText: 'Wynik ${getPlayerWithClub(currentMatch!['player1'])}'),
             validator: (value) {
               if (value == null ||
                   value.isEmpty ||
@@ -105,7 +121,7 @@ class _TournamentCurrentMatchPageGuestState extends State<TournamentCurrentMatch
           TextFormField(
             key: Key('score2'),
             controller: _score2Controller,
-            decoration: InputDecoration(labelText: 'Wynik ${currentMatch!['player2']}'),
+            decoration: InputDecoration(labelText: 'Wynik ${getPlayerWithClub(currentMatch!['player2'])}'),
             validator: (value) {
               if (value == null ||
                   value.isEmpty ||

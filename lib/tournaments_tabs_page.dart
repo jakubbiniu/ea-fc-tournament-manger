@@ -45,7 +45,7 @@ class _TournamentTabsPageState extends State<TournamentTabsPage> with SingleTick
         controller: _tabController,
         children: [
           EndedTournamentsPage(userId: widget.userId),
-          CreateTournamentPage(),
+          CreateTournamentPage(userId: widget.userId),
           UpcomingTournamentsPage(userId: widget.userId),
         ],
       ),
