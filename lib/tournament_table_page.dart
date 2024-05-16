@@ -85,8 +85,8 @@ class _TournamentTablePageState extends State<TournamentTablePage> {
     });
 
     rows.sort((a, b) {
-      int pointsA = int.parse((a.cells[1].child as Text).data!);
-      int pointsB = int.parse((b.cells[1].child as Text).data!);
+      int pointsA = int.parse((a.cells[2].child as Text).data!);
+      int pointsB = int.parse((b.cells[2].child as Text).data!);
       if (pointsA != pointsB) {
         return pointsB.compareTo(pointsA);
       }
@@ -97,24 +97,60 @@ class _TournamentTablePageState extends State<TournamentTablePage> {
         return directMatchB.compareTo(directMatchA);
       }
 
-      int goalDifferenceA = int.parse((a.cells[2].child as Text).data!);
-      int goalDifferenceB = int.parse((b.cells[2].child as Text).data!);
+      int goalDifferenceA = int.parse((a.cells[3].child as Text).data!);
+      int goalDifferenceB = int.parse((b.cells[3].child as Text).data!);
       if (goalDifferenceA != goalDifferenceB) {
         return goalDifferenceB.compareTo(goalDifferenceA);
       }
 
-      return int.parse((b.cells[2].child as Text).data!).compareTo(int.parse((a.cells[2].child as Text).data!));
+      return int.parse((b.cells[3].child as Text).data!).compareTo(int.parse((a.cells[3].child as Text).data!));
     });
 
+    List<DataRow> rankedRows = [];
+    for (int i = 0; i < rows.length; i++) {
+      DataRow row = rows[i];
+      rankedRows.add(DataRow(
+        cells: [
+          DataCell(Text((i + 1).toString())), // Rank column
+          ...row.cells
+        ],
+      ));
+    }
+
     return DataTable(
+      columnSpacing: 20.0,
       columns: [
+        DataColumn(label: Text("#")), // Rank column
         DataColumn(label: Text("Drużyna")),
         DataColumn(label: Text("M")),
         DataColumn(label: Text("PKT")),
         DataColumn(label: Text("RB")),
       ],
-      rows: rows,
+      rows: rankedRows,
     );
+  }
+
+
+  Future<List> makeMatchScores() async {
+    List<Map<dynamic, dynamic>> matches = [];
+    List<String> matchScores = [];
+
+    DataSnapshot snapshot = await _matchesRef.get();
+    if (snapshot.exists) {
+      matches = (snapshot.value as Map).values.toList().cast<Map<dynamic, dynamic>>();
+    }
+
+    for (var match in matches) {
+      String player1 = match['player1'];
+      String player2 = match['player2'];
+      int score1 = match['score1'];
+      int score2 = match['score2'];
+      if (match['completed'] == false) {
+        continue;
+      }
+      matchScores.add("$player1    $score1:$score2    $player2");
+    }
+    return matchScores;
   }
 
   @override
@@ -123,21 +159,81 @@ class _TournamentTablePageState extends State<TournamentTablePage> {
       appBar: AppBar(
         automaticallyImplyLeading: false,
         title: Text("Tabela"),
+        centerTitle: true,
       ),
-      body: SingleChildScrollView(
-        scrollDirection: Axis.horizontal,
-        child: FutureBuilder<DataTable>(
-          future: makeTable(widget.tournamentId),
-          builder: (context, snapshot) {
-            if (snapshot.connectionState == ConnectionState.waiting) {
-              return Center(child: CircularProgressIndicator());
-            }
-            if (!snapshot.hasData || snapshot.data == null) {
-              return Center(child: Text("Brak danych turnieju."));
-            }
-            return snapshot.data!;
-          },
-        ),
+      body: Column(
+        children: [
+          Expanded(
+            flex: 3,
+            child: FutureBuilder<DataTable>(
+              future: makeTable(widget.tournamentId),
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return Center(child: CircularProgressIndicator());
+                }
+                if (!snapshot.hasData || snapshot.data == null) {
+                  return Center(child: Text("Brak danych turnieju."));
+                }
+                return Column(
+                  children: [
+                    SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      child: SingleChildScrollView(
+                        scrollDirection: Axis.vertical,
+                        child: snapshot.data!,
+                      ),
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.all(8.0),
+                      child: Text(
+                        "M - rozegrane mecze, PKT - punkty, RB - różnica bramek \n"
+                            "W przypadku takiej samej liczby punktów, o kolejności decyduje: \n"
+                            "wynik bezpośredniego meczu "
+                            "i różnica bramek w turnieju",
+                        style: TextStyle(fontSize: 11),
+                      ),
+                    ),
+                  ],
+                );
+              },
+            ),
+          ),
+          Expanded(
+            flex: 2,
+            child: Column(
+              children: [
+                Padding(
+                  padding: const EdgeInsets.all(8.0),
+                  child: Text(
+                    "Wyniki",
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  ),
+                ),
+                Expanded(
+                  child: FutureBuilder<List>(
+                    future: makeMatchScores(),
+                    builder: (context, snapshot) {
+                      if (snapshot.connectionState == ConnectionState.waiting) {
+                        return Center(child: CircularProgressIndicator());
+                      }
+                      if (!snapshot.hasData || snapshot.data == null) {
+                        return Center(child: Text("Brak danych turnieju."));
+                      }
+                      return ListView.builder(
+                        itemCount: snapshot.data!.length,
+                        itemBuilder: (context, index) {
+                          return ListTile(
+                            title: Text(snapshot.data![index]),
+                          );
+                        },
+                      );
+                    },
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }

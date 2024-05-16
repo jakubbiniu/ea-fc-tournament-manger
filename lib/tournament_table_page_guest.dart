@@ -11,14 +11,14 @@ class TournamentTablePageGuest extends StatefulWidget {
 }
 
 class _TournamentTablePageGuestState extends State<TournamentTablePageGuest> {
-
   @override
   void initState() {
     super.initState();
     makeTable();
+    makeMatchScores();
   }
 
-   Future<DataTable> makeTable() async {
+  Future<DataTable> makeTable() async {
     var tournamentData = await DatabaseHelper.instance.getMatchesForTournament(widget.tournamentId);
     List<DataRow> rows = [];
     List<dynamic> matches = tournamentData;
@@ -26,6 +26,7 @@ class _TournamentTablePageGuestState extends State<TournamentTablePageGuest> {
     Map<String, int> goalsScored = {};
     Map<String, int> goalsConceded = {};
     Map<String, Map<String, int>> directMatches = {};
+    Map<String, int> matchesPlayed = {};
 
     for (var match in matches) {
       String player1 = match['player1'];
@@ -33,9 +34,12 @@ class _TournamentTablePageGuestState extends State<TournamentTablePageGuest> {
       int score1 = match['score1'];
       int score2 = match['score2'];
 
-      if(match['completed'] == false) {
+      if (match['completed'] == false) {
         continue;
       }
+
+      matchesPlayed[player1] = (matchesPlayed[player1] ?? 0) + 1;
+      matchesPlayed[player2] = (matchesPlayed[player2] ?? 0) + 1;
 
       if (score1 > score2) {
         points[player1] = (points[player1] ?? 0) + 3;
@@ -66,48 +70,72 @@ class _TournamentTablePageGuestState extends State<TournamentTablePageGuest> {
       goalsConceded[player2] = (goalsConceded[player2] ?? 0) + score1;
     }
 
-    points.forEach((player, point) {
-      rows.add(DataRow(
-        cells: [
-          DataCell(Text(player)),
-          DataCell(Text(point.toString())),
-          DataCell(Text(((goalsScored[player] ?? 0) - (goalsConceded[player] ?? 0)).toString())),
-        ],
-      ));
-    });
-
-    rows.sort((a, b) {
-      int pointsA = int.parse((a.cells[1].child as Text).data!);
-      int pointsB = int.parse((b.cells[1].child as Text).data!);
+    List<MapEntry<String, int>> sortedPoints = points.entries.toList();
+    sortedPoints.sort((a, b) {
+      int pointsA = a.value;
+      int pointsB = b.value;
       if (pointsA != pointsB) {
         return pointsB.compareTo(pointsA);
       }
 
-      int directMatchA = directMatches[(a.cells[0].child as Text).data!]?[(b.cells[0].child as Text).data!] ?? 0;
-      int directMatchB = directMatches[(b.cells[0].child as Text).data!]?[(a.cells[0].child as Text).data!] ?? 0;
-      if(directMatchA != directMatchB) {
+      int directMatchA = directMatches[a.key]?[b.key] ?? 0;
+      int directMatchB = directMatches[b.key]?[a.key] ?? 0;
+      if (directMatchA != directMatchB) {
         return directMatchB.compareTo(directMatchA);
       }
 
-      int goalDifferenceA = int.parse((a.cells[2].child as Text).data!);
-      int goalDifferenceB = int.parse((b.cells[2].child as Text).data!);
-      if (goalDifferenceA != goalDifferenceB) {
-        return goalDifferenceB.compareTo(goalDifferenceA);
-      }
-
-      return int.parse((b.cells[2].child as Text).data!).compareTo(int.parse((a.cells[2].child as Text).data!));
+      int goalDifferenceA = (goalsScored[a.key] ?? 0) - (goalsConceded[a.key] ?? 0);
+      int goalDifferenceB = (goalsScored[b.key] ?? 0) - (goalsConceded[b.key] ?? 0);
+      return goalDifferenceB.compareTo(goalDifferenceA);
     });
 
-    var finalTable =  DataTable(
+    int rank = 1;
+    sortedPoints.forEach((entry) {
+      String player = entry.key;
+      int point = entry.value;
+
+      rows.add(DataRow(
+        cells: [
+          DataCell(Text(rank.toString())),
+          DataCell(Text(player)),
+          DataCell(Text(matchesPlayed[player].toString())),
+          DataCell(Text(point.toString())),
+          DataCell(Text(
+              ((goalsScored[player] ?? 0) - (goalsConceded[player] ?? 0))
+                  .toString())),
+        ],
+      ));
+      rank++;
+    });
+
+    return DataTable(
+      columnSpacing: 20.0,
       columns: [
+        DataColumn(label: Text("#")),
         DataColumn(label: Text("Drużyna")),
-        DataColumn(label: Text("Punkty")),
-        DataColumn(label: Text("Bilans bramek")),
+        DataColumn(label: Text("M")),
+        DataColumn(label: Text("PKT")),
+        DataColumn(label: Text("RB")),
       ],
       rows: rows,
     );
+  }
 
-    return finalTable;
+  Future<List> makeMatchScores() async {
+    var tournamentData = await DatabaseHelper.instance.getMatchesForTournament(widget.tournamentId);
+    List<dynamic> matches = tournamentData;
+    List<dynamic> matchScores = [];
+    for (var match in matches) {
+      String player1 = match['player1'];
+      String player2 = match['player2'];
+      int score1 = match['score1'];
+      int score2 = match['score2'];
+      if (match['completed'] == false) {
+        continue;
+      }
+      matchScores.add("$player1    $score1:$score2    $player2");
+    }
+    return matchScores;
   }
 
   @override
@@ -116,25 +144,84 @@ class _TournamentTablePageGuestState extends State<TournamentTablePageGuest> {
       appBar: AppBar(
         automaticallyImplyLeading: false,
         title: Text("Tabela"),
+        centerTitle: true,
       ),
-      body: SingleChildScrollView(
-        scrollDirection: Axis.horizontal,
-        child: FutureBuilder<DataTable>(
-          future: makeTable(),
-          builder: (context, snapshot) {
-            if (snapshot.connectionState == ConnectionState.waiting) {
-              return Center(child: CircularProgressIndicator());
-            }
-            if (!snapshot.hasData || snapshot.data == null) {
-              return Center(child: Text("Brak danych turnieju."));
-            }
-            return snapshot.data!;
-          },
-        ),
+      body: Column(
+        children: [
+          Expanded(
+            flex: 3,
+            child: FutureBuilder<DataTable>(
+              future: makeTable(),
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return Center(child: CircularProgressIndicator());
+                }
+                if (!snapshot.hasData || snapshot.data == null) {
+                  return Center(child: Text("Brak danych turnieju."));
+                }
+                return Column(
+                  children: [
+                    SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      child: SingleChildScrollView(
+                        scrollDirection: Axis.vertical,
+                        child: snapshot.data!,
+                      ),
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.all(8.0),
+                      child: Text(
+                        "M - rozegrane mecze, PKT - punkty, RB - różnica bramek \n"
+                            "W przypadku takiej samej liczby punktów, o kolejności decyduje: \n"
+                            "wynik bezpośredniego meczu "
+                            "i różnica bramek w turnieju",
+                        style: TextStyle(fontSize: 11),
+                      ),
+                    ),
+                  ],
+                );
+              },
+            ),
+          ),
+          Expanded(
+            flex: 2,
+            child: Column(
+              children: [
+                Padding(
+                  padding: const EdgeInsets.all(8.0),
+                  child: Text(
+                    "Wyniki",
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  ),
+                ),
+                Expanded(
+                  child: FutureBuilder<List>(
+                    future: makeMatchScores(),
+                    builder: (context, snapshot) {
+                      if (snapshot.connectionState == ConnectionState.waiting) {
+                        return Center(child: CircularProgressIndicator());
+                      }
+                      if (!snapshot.hasData || snapshot.data == null) {
+                        return Center(child: Text("Brak danych turnieju."));
+                      }
+                      return ListView.builder(
+                        itemCount: snapshot.data!.length,
+                        itemBuilder: (context, index) {
+                          return ListTile(
+                            title: Text(snapshot.data![index]),
+                          );
+                        },
+                      );
+                    },
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }
-
 
 
 }
