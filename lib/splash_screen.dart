@@ -17,6 +17,7 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
   late Animation<Offset> _positionAnimation;
   bool _animationStarted = false;
   bool _showCrackedScreen = false;
+  bool _showText = true;
 
   @override
   void initState() {
@@ -68,6 +69,7 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
   void _startAnimation() {
     if (!_animationStarted) {
       setState(() {
+        _showText = false;
         _animationStarted = true;
       });
       _controller.forward();
@@ -90,6 +92,20 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
             // Background image
             Positioned.fill(
               child: Image.asset('assets/grass.jpg', fit: BoxFit.cover),
+            ),
+            AnimatedOpacity(
+              opacity: _showText ? 1.0 : 0.0,
+              duration: Duration(milliseconds: 500),
+              child: Align(
+                alignment: Alignment.topCenter,
+                child: Padding(
+                  padding: const EdgeInsets.only(top: 50.0),
+                  child: Text(
+                    'Dotknij piłkę aby uruchomić aplikację',
+                    style: TextStyle(fontSize: 18.0, fontWeight: FontWeight.bold),
+                  ),
+                ),
+              ),
             ),
             Center(
               child: AnimatedBuilder(
