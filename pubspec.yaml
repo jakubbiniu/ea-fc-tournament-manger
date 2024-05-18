@@ -93,6 +93,9 @@ flutter_launcher_icons:
 flutter:
   assets:
     - assets/
+    - assets/ball.png
+    - assets/broken.png
+    - assets/grass.jpg
 
   # The following line ensures that the Material Icons font is
   # included with your application, so that you can use the icons in
