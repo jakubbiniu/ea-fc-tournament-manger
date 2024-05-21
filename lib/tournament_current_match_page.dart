@@ -21,6 +21,7 @@ class _TournamentCurrentMatchPageState extends State<TournamentCurrentMatchPage>
   bool isTournamentEnded = false;
   bool isAdmin = false;
   Map<String, String> playerClubs = {};
+  Map<String, String> clubIcons = {};
 
   @override
   void initState() {
@@ -58,7 +59,8 @@ class _TournamentCurrentMatchPageState extends State<TournamentCurrentMatchPage>
         Map<dynamic, dynamic> clubsMap = Map<dynamic, dynamic>.from(event.snapshot.value as Map);
         setState(() {
           clubsMap.forEach((key, value) {
-            playerClubs[key] = value.toString();
+            playerClubs[key] = value['name'];
+            clubIcons[key] = value['icon'];
           });
         });
       }
@@ -121,34 +123,25 @@ class _TournamentCurrentMatchPageState extends State<TournamentCurrentMatchPage>
     String player2 = match['player2'];
     String club1 = playerClubs[player1] ?? 'Brak klubu';
     String club2 = playerClubs[player2] ?? 'Brak klubu';
+    String clubIcon1 = clubIcons[player1] ?? '';
+    String clubIcon2 = clubIcons[player2] ?? '';
 
     return Form(
       key: _formKey,
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: <Widget>[
-          Text('Mecz: $player1 ($club1) vs $player2 ($club2)'),
-          if (isAdmin) ...[
-            TextFormField(
-              controller: _score1Controller,
-              decoration: InputDecoration(labelText: 'Wynik $player1 ($club1)'),
-              validator: (value) {
-                if (value == null || value.isEmpty || int.tryParse(value) == null || int.parse(value) < 0) {
-                  return 'Wprowadź poprawnie wyniki (nieujemna liczba całkowita)';
-                }
-                return null;
-              },
-            ),
-            TextFormField(
-              controller: _score2Controller,
-              decoration: InputDecoration(labelText: 'Wynik $player2 ($club2)'),
-              validator: (value) {
-                if (value == null || value.isEmpty || int.tryParse(value) == null || int.parse(value) < 0) {
-                  return 'Wprowadź poprawnie wyniki (nieujemna liczba całkowita)';
-                }
-                return null;
-              },
-            ),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              buildPlayerCard(player1, club1, clubIcon1, _score1Controller),
+              SizedBox(width: 10),
+              Text('VS', style: TextStyle(fontSize: 24)),
+              SizedBox(width: 10),
+              buildPlayerCard(player2, club2, clubIcon2, _score2Controller),
+            ],
+          ),
+          if (isAdmin)
             ElevatedButton(
               onPressed: () async {
                 if (_formKey.currentState!.validate()) {
@@ -189,8 +182,39 @@ class _TournamentCurrentMatchPageState extends State<TournamentCurrentMatchPage>
               },
               child: Text('Zatwierdź wynik'),
             ),
-          ]
         ],
+      ),
+    );
+  }
+
+  Widget buildPlayerCard(String player, String club, String clubIcon, TextEditingController scoreController) {
+    return Expanded(
+      child: Card(
+        margin: EdgeInsets.symmetric(vertical: 10),
+        child: Padding(
+          padding: const EdgeInsets.all(8.0),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Text(player, style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+              SizedBox(height: 5),
+              Text(club, style: TextStyle(fontSize: 16)),
+              SizedBox(height: 5),
+              if (clubIcon.isNotEmpty) Image.network(clubIcon, width: 50, height: 50),
+              if (isAdmin)
+                TextFormField(
+                  controller: scoreController,
+                  decoration: InputDecoration(labelText: 'Wynik $player ($club)'),
+                  validator: (value) {
+                    if (value == null || value.isEmpty || int.tryParse(value) == null || int.parse(value) < 0) {
+                      return 'Wprowadź poprawnie wyniki (nieujemna liczba całkowita)';
+                    }
+                    return null;
+                  },
+                ),
+            ],
+          ),
+        ),
       ),
     );
   }

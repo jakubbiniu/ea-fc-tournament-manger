@@ -21,7 +21,14 @@ class TournamentInfoPageGuest extends StatelessWidget {
         Map<String, dynamic> tournament = snapshot.data!;
         bool isEnded = tournament['ended'] ?? false;
         bool isStarted = tournament['started'] ?? false;
-        Map<String, String> selectedClubs = Map<String, String>.from(tournament['selectedClubs'] ?? {});
+
+        Map<String, Map<String, String>> selectedClubs = {};
+        if (tournament['selectedClubs'] != null) {
+          Map<dynamic, dynamic> rawSelectedClubs = tournament['selectedClubs'] as Map<dynamic, dynamic>;
+          rawSelectedClubs.forEach((key, value) {
+            selectedClubs[key as String] = Map<String, String>.from(value as Map);
+          });
+        }
 
         return ListView(
           children: <Widget>[
@@ -31,10 +38,21 @@ class TournamentInfoPageGuest extends StatelessWidget {
             ...List<Widget>.from((tournament['players'] as List).map(
                   (player) {
                 String playerName = player.toString();
-                String displayText = isStarted && selectedClubs.containsKey(playerName)
-                    ? '$playerName - ${selectedClubs[playerName]}'
-                    : playerName;
-                return ListTile(title: Text(displayText));
+                if (isStarted && selectedClubs.containsKey(playerName)) {
+                  String clubName = selectedClubs[playerName]!['name']!;
+                  String clubIcon = selectedClubs[playerName]!['icon']!;
+                  return ListTile(
+                    title: Row(
+                      children: [
+                        Text('$playerName - $clubName'),
+                        SizedBox(width: 8),
+                        Image.network(clubIcon, width: 20, height: 20),
+                      ],
+                    ),
+                  );
+                } else {
+                  return ListTile(title: Text(playerName));
+                }
               },
             )),
           ],

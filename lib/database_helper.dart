@@ -83,11 +83,12 @@ class DatabaseHelper {
     return key;
   }
 
-  Future<void> updateTournamentPlayerClub(int tournamentId, Map<String, String> selectedClubs) async {
+  Future<void> updateTournamentPlayerClub(int tournamentId, Map<String, Map<String, String>> selectedClubs) async {
     var db = await database;
     var store = intMapStoreFactory.store('tournaments');
     await store.record(tournamentId).update(db, {'selectedClubs': selectedClubs});
   }
+
 
   Future<void> startTournament(int tournamentId) async {
     var db = await database;

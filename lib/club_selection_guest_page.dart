@@ -1,9 +1,11 @@
 import 'dart:async';
 import 'dart:math';
+import 'package:firebase_database/firebase_database.dart';
 import 'package:flutter/material.dart';
 import 'database_helper.dart';
 import 'tournament_details_page_guest.dart';
 import 'package:flutter_fortune_wheel/flutter_fortune_wheel.dart';
+import 'package:carousel_slider/carousel_slider.dart';
 
 class ClubSelectionPageGuest extends StatefulWidget {
   final int tournamentId;
@@ -15,15 +17,16 @@ class ClubSelectionPageGuest extends StatefulWidget {
 }
 
 class _ClubSelectionPageGuestState extends State<ClubSelectionPageGuest> {
-  final List<String> _clubs = [
-    'Barcelona', 'Real Madrid', 'Manchester United', 'Juventus',
-    'Paris Saint-Germain', 'Bayern Munich', 'Liverpool', 'Chelsea'
-  ];
+  final List<String> _countries = [];
+  final Map<String, List<String>> _leagues = {};
+  final Map<String, List<Map<String, String>>> _clubs = {};
   List<Map<String, dynamic>> _players = [];
   final List<String> _availableClubs = [];
-  final Map<String, String> _selectedClubs = {};
+  final Map<String, Map<String, String>> _selectedClubs = {};
   Map<String, dynamic>? _selectedPlayer;
-  String? _selectedClub;
+  String? _selectedCountry;
+  String? _selectedLeague;
+  int _selectedClubIndex = 0;
   final random = Random();
   late StreamController<int> _wheelNotifier;
   final dbHelper = DatabaseHelper.instance;
@@ -33,6 +36,7 @@ class _ClubSelectionPageGuestState extends State<ClubSelectionPageGuest> {
     super.initState();
     _wheelNotifier = StreamController<int>.broadcast();
     fetchPlayers();
+    fetchCountriesAndTeams();
     listenToSelectedClubs();
   }
 
@@ -50,8 +54,17 @@ class _ClubSelectionPageGuestState extends State<ClubSelectionPageGuest> {
           'name': player,
           'id': null,
         }));
-        _availableClubs.addAll(_clubs.where((club) => !(tournamentData['selectedClubs'] ?? {}).containsValue(club)));
-        _selectedClubs.addAll(Map<String, String>.from(tournamentData['selectedClubs'] ?? {}));
+
+        _selectedClubs.clear();
+        if (tournamentData['selectedClubs'] != null) {
+          Map<String, dynamic> clubsMap = Map<String, dynamic>.from(tournamentData['selectedClubs']);
+          clubsMap.forEach((key, value) {
+            _selectedClubs[key] = Map<String, String>.from(value);
+          });
+        }
+
+        _players = _players.where((player) => !_selectedClubs.containsKey(player['name'])).toList();
+        _availableClubs.clear();
       });
     }
   }
@@ -61,18 +74,72 @@ class _ClubSelectionPageGuestState extends State<ClubSelectionPageGuest> {
     if (tournamentData != null && tournamentData['selectedClubs'] != null) {
       setState(() {
         _selectedClubs.clear();
-        _availableClubs.clear();
-        _availableClubs.addAll(_clubs);
 
-        Map<String, String> selectedClubs = Map<String, String>.from(tournamentData['selectedClubs']);
-        selectedClubs.forEach((playerName, club) {
-          _selectedClubs[playerName] = club;
-          _availableClubs.remove(club);
+        Map<String, dynamic> clubsMap = Map<String, dynamic>.from(tournamentData['selectedClubs']);
+        clubsMap.forEach((key, value) {
+          _selectedClubs[key] = Map<String, String>.from(value);
         });
 
         _players = _players.where((player) => !_selectedClubs.containsKey(player['name'])).toList();
       });
     }
+  }
+
+  void fetchCountriesAndTeams() {
+    FirebaseDatabase.instance.ref('countries').once().then((DatabaseEvent event) {
+      final data = event.snapshot.value as Map<dynamic, dynamic>;
+      setState(() {
+        data.forEach((country, countryData) {
+          if (country != null && countryData != null) {
+            _countries.add(country as String);
+            final leagues = countryData['leagues'] as Map<dynamic, dynamic>;
+            _leagues[country] = leagues.keys.cast<String>().toList();
+            leagues.forEach((league, leagueData) {
+              if (leagueData != null) {
+                _clubs[league as String] = List<Map<String, String>>.from((leagueData as List).map((clubData) {
+                  if (clubData != null) {
+                    final clubMap = clubData as Map<dynamic, dynamic>;
+                    return {
+                      'name': clubMap['name'] as String,
+                      'icon': clubMap['icon'] as String
+                    };
+                  }
+                  return {'name': '', 'icon': ''};
+                }).where((clubMap) => clubMap['name']!.isNotEmpty));
+              }
+            });
+          }
+        });
+      });
+
+      FirebaseDatabase.instance.ref('national_teams').once().then((DatabaseEvent event) {
+        final data = event.snapshot.value as Map<dynamic, dynamic>;
+        setState(() {
+          _countries.add('National Teams');
+          _leagues['National Teams'] = ['Men', 'Women'];
+          _clubs['Men'] = List<Map<String, String>>.from((data['men'] as List).map((teamData) {
+            if (teamData != null) {
+              final teamMap = teamData as Map<dynamic, dynamic>;
+              return {
+                'name': teamMap['name'] as String,
+                'icon': teamMap['icon'] as String
+              };
+            }
+            return {'name': '', 'icon': ''};
+          }).where((teamMap) => teamMap['name']!.isNotEmpty));
+          _clubs['Women'] = List<Map<String, String>>.from((data['women'] as List).map((teamData) {
+            if (teamData != null) {
+              final teamMap = teamData as Map<dynamic, dynamic>;
+              return {
+                'name': teamMap['name'] as String,
+                'icon': teamMap['icon'] as String
+              };
+            }
+            return {'name': '', 'icon': ''};
+          }).where((teamMap) => teamMap['name']!.isNotEmpty));
+        });
+      });
+    });
   }
 
   void spinWheel() {
@@ -86,14 +153,16 @@ class _ClubSelectionPageGuestState extends State<ClubSelectionPageGuest> {
     });
   }
 
-  void selectClub(String club) async {
+  void selectClub(String clubName, String clubIcon) async {
     if (_selectedPlayer != null) {
+      final playerName = _selectedPlayer!['name'];
       setState(() {
-        _selectedClubs[_selectedPlayer!['name']] = club;
-        _availableClubs.remove(club);
-        _players.remove(_selectedPlayer);
+        _selectedClubs[playerName] = {'name': clubName, 'icon': clubIcon};
+        _players = _players.where((player) => player['name'] != playerName).toList();
         _selectedPlayer = null;
-        _selectedClub = null;
+        _selectedCountry = null;
+        _selectedLeague = null;
+        _selectedClubIndex = 0;
       });
       await dbHelper.updateTournamentPlayerClub(widget.tournamentId, _selectedClubs);
 
@@ -101,22 +170,47 @@ class _ClubSelectionPageGuestState extends State<ClubSelectionPageGuest> {
         setState(() {
           _selectedPlayer = _players.first;
         });
+      } else if (_players.isEmpty) {
+        setState(() {
+          _selectedPlayer = null;
+        });
       }
     } else if (_selectedPlayer == null && _players.length == 1) {
+      final playerName = _players.first['name'];
       setState(() {
         _selectedPlayer = _players.first;
-        _selectedClubs[_selectedPlayer!['name']] = club;
-        _availableClubs.remove(club);
-        _players.remove(_selectedPlayer);
+        _selectedClubs[playerName] = {'name': clubName, 'icon': clubIcon};
+        _players = _players.where((player) => player['name'] != playerName).toList();
         _selectedPlayer = null;
-        _selectedClub = null;
+        _selectedCountry = null;
+        _selectedLeague = null;
+        _selectedClubIndex = 0;
       });
       await dbHelper.updateTournamentPlayerClub(widget.tournamentId, _selectedClubs);
+    }
+
+    if (_players.isEmpty) {
+      setState(() {
+        _selectedPlayer = null;
+      });
     }
   }
 
   void startTournament() async {
     await dbHelper.startTournament(widget.tournamentId);
+    Navigator.pushReplacement(context, MaterialPageRoute(
+      builder: (context) => TournamentDetailsPageGuest(tournamentId: widget.tournamentId),
+    ));
+  }
+
+  bool get shouldHideWheel {
+    if (_selectedPlayer != null) {
+      return true;
+    }
+    if (_players.length <= 1) {
+      return true;
+    }
+    return false;
   }
 
   @override
@@ -124,108 +218,244 @@ class _ClubSelectionPageGuestState extends State<ClubSelectionPageGuest> {
     return Scaffold(
       appBar: AppBar(
         automaticallyImplyLeading: false,
-        title: Text('Losowanie klubów'),
       ),
       body: SafeArea(
         child: Center(
-          child: Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                if (_selectedPlayer != null)
-                  Text(
-                    'Wylosowany gracz: ${_selectedPlayer!['name']}',
-                    style: TextStyle(fontSize: 24),
-                    textAlign: TextAlign.center,
-                  ),
-                if (_selectedPlayer == null && _players.length > 1)
-                  Text(
-                    'Trwa losowanie klubów dla zawodników',
-                    style: TextStyle(fontSize: 24),
-                    textAlign: TextAlign.center,
-                  ),
-                SizedBox(height: 20),
-                if (_selectedPlayer == null && _players.length > 1)
-                  ElevatedButton(
-                    onPressed: spinWheel,
-                    child: Text('Losuj gracza'),
-                  ),
-                if (_selectedPlayer == null && _players.length > 1)
-                  Expanded(
-                    child: StreamBuilder<int>(
-                      stream: _wheelNotifier.stream,
-                      builder: (context, snapshot) {
-                        return FortuneWheel(
-                          selected: _wheelNotifier.stream,
-                          animateFirst: false,
-                          duration: const Duration(seconds: 3),
-                          items: [
-                            for (var player in _players)
-                              FortuneItem(
-                                child: Text(player['name']),
-                              ),
-                          ],
-                          onAnimationEnd: () {
-                            if (snapshot.hasData) {
-                              setState(() {
-                                _selectedPlayer = _players[snapshot.data!];
-                              });
-                            }
-                          },
-                        );
-                      },
+          child: SingleChildScrollView(
+            child: Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.start,
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  if (_selectedPlayer != null)
+                    Text(
+                      'Wylosowany gracz: ${_selectedPlayer!['name']}',
+                      style: TextStyle(fontSize: 24),
+                      textAlign: TextAlign.center,
                     ),
-                  ),
-                if (_selectedPlayer != null || (_players.length == 1 && _selectedPlayer == null)) ...[
-                  Text(
-                    'Wybierasz klub dla: ${_selectedPlayer != null ? _selectedPlayer!['name'] : _players.first['name']}',
-                    style: TextStyle(fontSize: 18),
-                    textAlign: TextAlign.center,
-                  ),
-                  DropdownButton<String>(
-                    hint: Text('Wybierz klub'),
-                    value: _selectedClub,
-                    onChanged: (String? newValue) {
-                      setState(() {
-                        _selectedClub = newValue;
-                      });
-                    },
-                    items: _availableClubs.map((String club) {
-                      return DropdownMenuItem<String>(
-                        value: club,
-                        child: Text(club),
-                      );
-                    }).toList(),
-                  ),
-                  if (_selectedClub != null)
+                  if (_selectedPlayer == null && _players.isNotEmpty && _players.length > 1)
+                    Text(
+                      'Trwa losowanie klubów dla zawodników',
+                      style: TextStyle(fontSize: 24),
+                      textAlign: TextAlign.center,
+                    ),
+                  SizedBox(height: 20),
+                  if (_selectedPlayer == null && _players.length > 1)
                     ElevatedButton(
-                      onPressed: () {
-                        selectClub(_selectedClub!);
-                      },
-                      child: Text('Zatwierdź klub'),
+                      onPressed: spinWheel,
+                      child: Text('Losuj gracza'),
                     ),
-                ],
-                if (_selectedClubs.isNotEmpty) ...[
-                  Text(
-                    'Wybrane kluby:',
-                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-                    textAlign: TextAlign.center,
-                  ),
-                  ..._selectedClubs.entries.map((entry) {
-                    return Text(
-                      '${entry.key}: ${entry.value}',
+                  if (!shouldHideWheel)
+                    Container(
+                      height: 300,
+                      child: StreamBuilder<int>(
+                        stream: _wheelNotifier.stream,
+                        builder: (context, snapshot) {
+                          return FortuneWheel(
+                            selected: _wheelNotifier.stream,
+                            animateFirst: false,
+                            duration: const Duration(seconds: 3),
+                            items: [
+                              for (var player in _players)
+                                FortuneItem(
+                                  child: Text(player['name']),
+                                ),
+                            ],
+                            onAnimationEnd: () {
+                              if (snapshot.hasData) {
+                                setState(() {
+                                  _selectedPlayer = _players[snapshot.data!];
+                                });
+                              }
+                            },
+                          );
+                        },
+                      ),
+                    ),
+                  if (_selectedPlayer != null) ...[
+                    Text(
+                      'Wybierasz klub dla: ${_selectedPlayer!['name']}',
                       style: TextStyle(fontSize: 18),
                       textAlign: TextAlign.center,
-                    );
-                  }).toList(),
+                    ),
+                    DropdownButton<String>(
+                      hint: Text('Wybierz kraj'),
+                      value: _selectedCountry,
+                      onChanged: (String? newValue) {
+                        setState(() {
+                          _selectedCountry = newValue;
+                          _selectedLeague = null;
+                          _selectedClubIndex = 0;
+                        });
+                      },
+                      items: _countries.map((String country) {
+                        return DropdownMenuItem<String>(
+                          value: country,
+                          child: Text(country),
+                        );
+                      }).toList(),
+                    ),
+                    if (_selectedCountry != null)
+                      DropdownButton<String>(
+                        hint: Text('Wybierz ligę'),
+                        value: _selectedLeague,
+                        onChanged: (String? newValue) {
+                          setState(() {
+                            _selectedLeague = newValue;
+                            _selectedClubIndex = 0;
+                          });
+                        },
+                        items: _leagues[_selectedCountry!]!.map((String league) {
+                          return DropdownMenuItem<String>(
+                            value: league,
+                            child: Text(league),
+                          );
+                        }).toList(),
+                      ),
+                    if (_selectedLeague != null && _clubs[_selectedLeague!] != null)
+                      CarouselSlider(
+                        options: CarouselOptions(
+                          height: 200,
+                          enlargeCenterPage: true,
+                          onPageChanged: (index, reason) {
+                            setState(() {
+                              _selectedClubIndex = index;
+                            });
+                          },
+                        ),
+                        items: _clubs[_selectedLeague!]!.map((club) {
+                          return Builder(
+                            builder: (BuildContext context) {
+                              return Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Image.network(club['icon']!, height: 100, width: 100),
+                                  SizedBox(height: 10),
+                                  Text(club['name']!, style: TextStyle(fontSize: 18)),
+                                ],
+                              );
+                            },
+                          );
+                        }).toList(),
+                      ),
+                    if (_selectedLeague != null && _clubs[_selectedLeague!] != null && _clubs[_selectedLeague!]!.isNotEmpty)
+                      ElevatedButton(
+                        onPressed: () {
+                          final selectedClub = _clubs[_selectedLeague!]![_selectedClubIndex];
+                          selectClub(selectedClub['name']!, selectedClub['icon']!);
+                        },
+                        child: Text('Zatwierdź klub'),
+                      ),
+                  ] else if (_selectedPlayer == null && _players.length == 1) ...[
+                    Text(
+                      'Ostatni gracz: ${_players.first['name']} wybiera klub',
+                      style: TextStyle(fontSize: 18),
+                      textAlign: TextAlign.center,
+                    ),
+                    DropdownButton<String>(
+                      hint: Text('Wybierz kraj'),
+                      value: _selectedCountry,
+                      onChanged: (String? newValue) {
+                        setState(() {
+                          _selectedCountry = newValue;
+                          _selectedLeague = null;
+                          _selectedClubIndex = 0;
+                        });
+                      },
+                      items: _countries.map((String country) {
+                        return DropdownMenuItem<String>(
+                          value: country,
+                          child: Text(country),
+                        );
+                      }).toList(),
+                    ),
+                    if (_selectedCountry != null)
+                      DropdownButton<String>(
+                        hint: Text('Wybierz ligę'),
+                        value: _selectedLeague,
+                        onChanged: (String? newValue) {
+                          setState(() {
+                            _selectedLeague = newValue;
+                            _selectedClubIndex = 0;
+                          });
+                        },
+                        items: _leagues[_selectedCountry!]!.map((String league) {
+                          return DropdownMenuItem<String>(
+                            value: league,
+                            child: Text(league),
+                          );
+                        }).toList(),
+                      ),
+                    if (_selectedLeague != null && _clubs[_selectedLeague!] != null)
+                      CarouselSlider(
+                        options: CarouselOptions(
+                          height: 200,
+                          enlargeCenterPage: true,
+                          onPageChanged: (index, reason) {
+                            setState(() {
+                              _selectedClubIndex = index;
+                            });
+                          },
+                        ),
+                        items: _clubs[_selectedLeague!]!.map((club) {
+                          return Builder(
+                            builder: (BuildContext context) {
+                              return Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Image.network(club['icon']!, height: 100, width: 100),
+                                  SizedBox(height: 10),
+                                  Text(club['name']!, style: TextStyle(fontSize: 18)),
+                                ],
+                              );
+                            },
+                          );
+                        }).toList(),
+                      ),
+                    if (_selectedLeague != null && _clubs[_selectedLeague!] != null && _clubs[_selectedLeague!]!.isNotEmpty)
+                      ElevatedButton(
+                        onPressed: () {
+                          final selectedClub = _clubs[_selectedLeague!]![_selectedClubIndex];
+                          selectClub(selectedClub['name']!, selectedClub['icon']!);
+                        },
+                        child: Text('Zatwierdź klub'),
+                      ),
+                  ],
+                  if (_selectedClubs.isNotEmpty) ...[
+                    Text(
+                      'Wybrane kluby:',
+                      style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                      textAlign: TextAlign.center,
+                    ),
+                    ..._selectedClubs.entries.map((entry) {
+                      return Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Text(
+                            '${entry.key}: ${entry.value['name']}',
+                            style: TextStyle(fontSize: 18),
+                          ),
+                          if (entry.value['icon'] != null && entry.value['icon']!.isNotEmpty)
+                            Padding(
+                              padding: const EdgeInsets.only(left: 8.0),
+                              child: Image.network(
+                                entry.value['icon']!,
+                                width: 20,
+                                height: 20,
+                              ),
+                            ),
+                        ],
+                      );
+                    }).toList(),
+                  ],
+                  if (_players.isEmpty && _selectedClubs.isNotEmpty)
+                    ElevatedButton(
+                      onPressed: startTournament,
+                      child: Text('Rozpocznij turniej'),
+                    ),
                 ],
-                if (_players.isEmpty && _selectedClubs.isNotEmpty)
-                  ElevatedButton(
-                    onPressed: startTournament,
-                    child: Text('Rozpocznij turniej'),
-                  ),
-              ],
+              ),
             ),
           ),
         ),

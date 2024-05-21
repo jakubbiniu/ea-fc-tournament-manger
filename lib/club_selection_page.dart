@@ -3,6 +3,7 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:firebase_database/firebase_database.dart';
 import 'package:flutter_fortune_wheel/flutter_fortune_wheel.dart';
+import 'package:carousel_slider/carousel_slider.dart';
 
 import 'tournament_details_page.dart';
 
@@ -17,15 +18,16 @@ class ClubSelectionPage extends StatefulWidget {
 }
 
 class _ClubSelectionPageState extends State<ClubSelectionPage> {
-  final List<String> _clubs = [
-    'Barcelona', 'Real Madrid', 'Manchester United', 'Juventus',
-    'Paris Saint-Germain', 'Bayern Munich', 'Liverpool', 'Chelsea'
-  ];
+  final List<String> _countries = [];
+  final Map<String, List<String>> _leagues = {};
+  final Map<String, List<Map<String, String>>> _clubs = {};
   List<Map<String, dynamic>> _players = [];
   final List<String> _availableClubs = [];
-  final Map<String, String> _selectedClubs = {};
+  final Map<String, Map<String, String>> _selectedClubs = {};
   Map<String, dynamic>? _selectedPlayer;
-  String? _selectedClub;
+  String? _selectedCountry;
+  String? _selectedLeague;
+  int _selectedClubIndex = 0;
   bool isAdmin = false;
   final random = Random();
   late StreamController<int> _wheelNotifier;
@@ -38,6 +40,7 @@ class _ClubSelectionPageState extends State<ClubSelectionPage> {
     fetchPlayers();
     listenToPlayerSelection();
     listenToSelectedClubs();
+    fetchCountriesAndTeams();
   }
 
   @override
@@ -62,7 +65,7 @@ class _ClubSelectionPageState extends State<ClubSelectionPage> {
       final players = List<Map<String, dynamic>>.from((event.snapshot.value as List).map((e) => Map<String, dynamic>.from(e)));
       setState(() {
         _players = players.where((player) => !_selectedClubs.containsKey(player['name'])).toList();
-        _availableClubs.addAll(_clubs.where((club) => !_selectedClubs.containsValue(club)));
+        _availableClubs.clear();
       });
     });
   }
@@ -92,17 +95,76 @@ class _ClubSelectionPageState extends State<ClubSelectionPage> {
       if (data != null) {
         setState(() {
           _selectedClubs.clear();
-          _availableClubs.clear();
-          _availableClubs.addAll(_clubs);
 
-          data.forEach((playerName, club) {
-            _selectedClubs[playerName] = club;
-            _availableClubs.remove(club);
+          data.forEach((playerName, clubData) {
+            if (clubData is Map<dynamic, dynamic>) {
+              _selectedClubs[playerName] = {
+                'name': clubData['name'],
+                'icon': clubData['icon']
+              };
+            }
           });
 
           _players = _players.where((player) => !_selectedClubs.containsKey(player['name'])).toList();
         });
       }
+    });
+  }
+
+  void fetchCountriesAndTeams() {
+    FirebaseDatabase.instance.ref('countries').once().then((DatabaseEvent event) {
+      final data = event.snapshot.value as Map<dynamic, dynamic>;
+      setState(() {
+        data.forEach((country, countryData) {
+          if (country != null && countryData != null) {
+            _countries.add(country as String);
+            final leagues = countryData['leagues'] as Map<dynamic, dynamic>;
+            _leagues[country] = leagues.keys.cast<String>().toList();
+            leagues.forEach((league, leagueData) {
+              if (leagueData != null) {
+                _clubs[league as String] = List<Map<String, String>>.from((leagueData as List).map((clubData) {
+                  if (clubData != null) {
+                    final clubMap = clubData as Map<dynamic, dynamic>;
+                    return {
+                      'name': clubMap['name'] as String,
+                      'icon': clubMap['icon'] as String
+                    };
+                  }
+                  return {'name': '', 'icon': ''};
+                }).where((clubMap) => clubMap['name']!.isNotEmpty));
+              }
+            });
+          }
+        });
+      });
+
+      FirebaseDatabase.instance.ref('national_teams').once().then((DatabaseEvent event) {
+        final data = event.snapshot.value as Map<dynamic, dynamic>;
+        setState(() {
+          _countries.add('National Teams');
+          _leagues['National Teams'] = ['Men', 'Women'];
+          _clubs['Men'] = List<Map<String, String>>.from((data['men'] as List).map((teamData) {
+            if (teamData != null) {
+              final teamMap = teamData as Map<dynamic, dynamic>;
+              return {
+                'name': teamMap['name'] as String,
+                'icon': teamMap['icon'] as String
+              };
+            }
+            return {'name': '', 'icon': ''};
+          }).where((teamMap) => teamMap['name']!.isNotEmpty));
+          _clubs['Women'] = List<Map<String, String>>.from((data['women'] as List).map((teamData) {
+            if (teamData != null) {
+              final teamMap = teamData as Map<dynamic, dynamic>;
+              return {
+                'name': teamMap['name'] as String,
+                'icon': teamMap['icon'] as String
+              };
+            }
+            return {'name': '', 'icon': ''};
+          }).where((teamMap) => teamMap['name']!.isNotEmpty));
+        });
+      });
     });
   }
 
@@ -117,15 +179,24 @@ class _ClubSelectionPageState extends State<ClubSelectionPage> {
     });
   }
 
-  void selectClub(String club) {
+  void selectClub() {
     if (_selectedPlayer != null || (_players.length == 1 && (_players.first['id'] == widget.userId || _players.first['id'] == null && isAdmin))) {
       final playerName = _selectedPlayer != null ? _selectedPlayer!['name'] : _players.first['name'];
-      FirebaseDatabase.instance.ref('tournaments/${widget.tournamentId}/player_clubs').child(playerName).set(club).then((_) {
-        FirebaseDatabase.instance.ref('tournaments/${widget.tournamentId}/current_selection').remove();
-      });
-      setState(() {
-        _selectedPlayer = null;
-        _selectedClub = null;
+      final selectedClub = _clubs[_selectedLeague!]![_selectedClubIndex];
+      final clubName = selectedClub['name'];
+      final clubIcon = selectedClub['icon'];
+      FirebaseDatabase.instance.ref('tournaments/${widget.tournamentId}/player_clubs').child(playerName).set({
+        'name': clubName,
+        'icon': clubIcon,
+      }).then((_) {
+        FirebaseDatabase.instance.ref('tournaments/${widget.tournamentId}/current_selection').remove().then((_) {
+          setState(() {
+            _selectedPlayer = null;
+            _selectedClubIndex = 0;
+            _selectedCountry = null;
+            _selectedLeague = null;
+          });
+        });
       });
     }
   }
@@ -138,153 +209,267 @@ class _ClubSelectionPageState extends State<ClubSelectionPage> {
     });
   }
 
+  bool get shouldHideWheel {
+    if (_selectedPlayer != null &&
+        (_selectedPlayer!['id'] == widget.userId ||
+            _selectedPlayer!['id'] == null && isAdmin)) {
+      return true;
+    }
+    if (_players.length <= 1) {
+      return true;
+    }
+    return false;
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
         automaticallyImplyLeading: false,
-        title: Text('Losowanie klubów'),
       ),
       body: SafeArea(
         child: Center(
-          child: Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                if (_selectedPlayer != null)
-                  Text(
-                    'Wylosowany gracz: ${_selectedPlayer!['name']}',
-                    style: TextStyle(fontSize: 24),
-                    textAlign: TextAlign.center,
-                  ),
-                if (_selectedPlayer == null && _players.isNotEmpty && _players.length > 1)
-                  Text(
-                    'Trwa losowanie klubów dla zawodników',
-                    style: TextStyle(fontSize: 24),
-                    textAlign: TextAlign.center,
-                  ),
-                SizedBox(height: 20),
-                if (isAdmin && _selectedPlayer == null && _players.length > 1)
-                  ElevatedButton(
-                    onPressed: spinWheel,
-                    child: Text('Losuj gracza'),
-                  ),
-                if (isAdmin && _players.length > 1)
-                  Expanded(
-                    child: StreamBuilder<int>(
-                      stream: _wheelNotifier.stream,
-                      builder: (context, snapshot) {
-                        return FortuneWheel(
-                          selected: _wheelNotifier.stream,
-                          animateFirst: false,
-                          duration: const Duration(seconds: 3),
-                          items: [
-                            for (var player in _players)
-                              FortuneItem(
-                                child: Text(player['name']),
-                              ),
-                          ],
-                          onAnimationEnd: () {
-                            if (snapshot.hasData) {
-                              FirebaseDatabase.instance.ref('tournaments/${widget.tournamentId}/current_selection').set({
-                                'selectedPlayer': _players[snapshot.data!]['name']
-                              });
-                            }
-                          },
-                        );
-                      },
+          child: SingleChildScrollView(
+            child: Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.start,
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  if (_selectedPlayer != null)
+                    Text(
+                      'Wylosowany gracz: ${_selectedPlayer!['name']}',
+                      style: TextStyle(fontSize: 24),
+                      textAlign: TextAlign.center,
                     ),
-                  ),
-                if (_selectedPlayer != null && (_selectedPlayer!['id'] == widget.userId || _selectedPlayer!['id'] == null && isAdmin)) ...[
-                  Text(
-                    'Wybierasz klub dla: ${_selectedPlayer!['name']}',
-                    style: TextStyle(fontSize: 18),
-                    textAlign: TextAlign.center,
-                  ),
-                  DropdownButton<String>(
-                    hint: Text('Wybierz klub'),
-                    value: _selectedClub,
-                    onChanged: (String? newValue) {
-                      setState(() {
-                        _selectedClub = newValue;
-                      });
-                    },
-                    items: _availableClubs.map((String club) {
-                      return DropdownMenuItem<String>(
-                        value: club,
-                        child: Text(club),
-                      );
-                    }).toList(),
-                  ),
-                  if (_selectedClub != null)
+                  if (_selectedPlayer == null && _players.isNotEmpty && _players.length > 1)
+                    Text(
+                      'Trwa losowanie klubów dla zawodników',
+                      style: TextStyle(fontSize: 24),
+                      textAlign: TextAlign.center,
+                    ),
+                  SizedBox(height: 20),
+                  if (isAdmin && _selectedPlayer == null && _players.length > 1)
                     ElevatedButton(
-                      onPressed: () {
-                        selectClub(_selectedClub!);
-                      },
-                      child: Text('Zatwierdź klub'),
+                      onPressed: spinWheel,
+                      child: Text('Losuj gracza'),
                     ),
-                ] else if (_selectedPlayer != null)
-                  Text(
-                    'Trwa wybór klubu przez: ${_selectedPlayer!['name']}',
-                    style: TextStyle(fontSize: 24),
-                    textAlign: TextAlign.center,
-                  ),
-                if (_selectedPlayer == null && _players.length == 1 && (_players.first['id'] == widget.userId || _players.first['id'] == null && isAdmin)) ...[
-                  Text(
-                    'Wybierasz klub dla: ${_players.first['name']}',
-                    style: TextStyle(fontSize: 18),
-                    textAlign: TextAlign.center,
-                  ),
-                  DropdownButton<String>(
-                    hint: Text('Wybierz klub'),
-                    value: _selectedClub,
-                    onChanged: (String? newValue) {
-                      setState(() {
-                        _selectedClub = newValue;
-                      });
-                    },
-                    items: _availableClubs.map((String club) {
-                      return DropdownMenuItem<String>(
-                        value: club,
-                        child: Text(club),
-                      );
-                    }).toList(),
-                  ),
-                  if (_selectedClub != null)
-                    ElevatedButton(
-                      onPressed: () {
-                        selectClub(_selectedClub!);
-                      },
-                      child: Text('Zatwierdź klub'),
+                  if (!shouldHideWheel)
+                    Container(
+                      height: 300,
+                      child: StreamBuilder<int>(
+                        stream: _wheelNotifier.stream,
+                        builder: (context, snapshot) {
+                          return FortuneWheel(
+                            selected: _wheelNotifier.stream,
+                            animateFirst: false,
+                            duration: const Duration(seconds: 3),
+                            items: [
+                              for (var player in _players)
+                                FortuneItem(
+                                  child: Text(player['name']),
+                                ),
+                            ],
+                            onAnimationEnd: () {
+                              if (snapshot.hasData) {
+                                FirebaseDatabase.instance.ref('tournaments/${widget.tournamentId}/current_selection').set({
+                                  'selectedPlayer': _players[snapshot.data!]['name']
+                                });
+                              }
+                            },
+                          );
+                        },
+                      ),
                     ),
-                ] else if (_selectedPlayer == null && _players.length == 1) ...[
-                  Text(
-                    'Ostatni gracz: ${_players.first['name']} wybiera klub',
-                    style: TextStyle(fontSize: 18),
-                    textAlign: TextAlign.center,
-                  ),
-                ],
-                if (isAdmin && _players.isEmpty)
-                  ElevatedButton(
-                    onPressed: startTournament,
-                    child: Text('Rozpocznij turniej'),
-                  ),
-                if (_selectedClubs.isNotEmpty) ...[
-                  Text(
-                    'Wybrane kluby:',
-                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-                    textAlign: TextAlign.center,
-                  ),
-                  ..._selectedClubs.entries.map((entry) {
-                    return Text(
-                      '${entry.key}: ${entry.value}',
+                  if (_selectedPlayer != null && (_selectedPlayer!['id'] == widget.userId || _selectedPlayer!['id'] == null && isAdmin)) ...[
+                    Text(
+                      'Wybierasz klub dla: ${_selectedPlayer!['name']}',
                       style: TextStyle(fontSize: 18),
                       textAlign: TextAlign.center,
-                    );
-                  }).toList(),
+                    ),
+                    DropdownButton<String>(
+                      hint: Text('Wybierz kraj'),
+                      value: _selectedCountry,
+                      onChanged: (String? newValue) {
+                        setState(() {
+                          _selectedCountry = newValue;
+                          _selectedLeague = null;
+                          _selectedClubIndex = 0;
+                        });
+                      },
+                      items: _countries.map((String country) {
+                        return DropdownMenuItem<String>(
+                          value: country,
+                          child: Text(country),
+                        );
+                      }).toList(),
+                    ),
+                    if (_selectedCountry != null)
+                      DropdownButton<String>(
+                        hint: Text('Wybierz ligę'),
+                        value: _selectedLeague,
+                        onChanged: (String? newValue) {
+                          setState(() {
+                            _selectedLeague = newValue;
+                            _selectedClubIndex = 0;
+                          });
+                        },
+                        items: _leagues[_selectedCountry!]!.map((String league) {
+                          return DropdownMenuItem<String>(
+                            value: league,
+                            child: Text(league),
+                          );
+                        }).toList(),
+                      ),
+                    if (_selectedLeague != null && _clubs[_selectedLeague!] != null)
+                      CarouselSlider(
+                        options: CarouselOptions(
+                          height: 200,
+                          enlargeCenterPage: true,
+                          onPageChanged: (index, reason) {
+                            setState(() {
+                              _selectedClubIndex = index;
+                            });
+                          },
+                        ),
+                        items: _clubs[_selectedLeague!]!.map((club) {
+                          return Builder(
+                            builder: (BuildContext context) {
+                              return Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Image.network(club['icon']!, height: 100, width: 100),
+                                  SizedBox(height: 10),
+                                  Text(club['name']!, style: TextStyle(fontSize: 18)),
+                                ],
+                              );
+                            },
+                          );
+                        }).toList(),
+                      ),
+                    if (_selectedLeague != null && _clubs[_selectedLeague!] != null && _clubs[_selectedLeague!]!.isNotEmpty)
+                      ElevatedButton(
+                        onPressed: selectClub,
+                        child: Text('Zatwierdź klub'),
+                      ),
+                  ] else if (_selectedPlayer != null)
+                    Text(
+                      'Trwa wybór klubu przez: ${_selectedPlayer!['name']}',
+                      style: TextStyle(fontSize: 24),
+                      textAlign: TextAlign.center,
+                    ),
+                  if (_selectedPlayer == null && _players.length == 1 && (_players.first['id'] == widget.userId || _players.first['id'] == null && isAdmin)) ...[
+                    Text(
+                      'Wybierasz klub dla: ${_players.first['name']}',
+                      style: TextStyle(fontSize: 18),
+                      textAlign: TextAlign.center,
+                    ),
+                    DropdownButton<String>(
+                      hint: Text('Wybierz kraj'),
+                      value: _selectedCountry,
+                      onChanged: (String? newValue) {
+                        setState(() {
+                          _selectedCountry = newValue;
+                          _selectedLeague = null;
+                          _selectedClubIndex = 0;
+                        });
+                      },
+                      items: _countries.map((String country) {
+                        return DropdownMenuItem<String>(
+                          value: country,
+                          child: Text(country),
+                        );
+                      }).toList(),
+                    ),
+                    if (_selectedCountry != null)
+                      DropdownButton<String>(
+                        hint: Text('Wybierz ligę'),
+                        value: _selectedLeague,
+                        onChanged: (String? newValue) {
+                          setState(() {
+                            _selectedLeague = newValue;
+                            _selectedClubIndex = 0;
+                          });
+                        },
+                        items: _leagues[_selectedCountry!]!.map((String league) {
+                          return DropdownMenuItem<String>(
+                            value: league,
+                            child: Text(league),
+                          );
+                        }).toList(),
+                      ),
+                    if (_selectedLeague != null && _clubs[_selectedLeague!] != null)
+                      CarouselSlider(
+                        options: CarouselOptions(
+                          height: 200,
+                          enlargeCenterPage: true,
+                          onPageChanged: (index, reason) {
+                            setState(() {
+                              _selectedClubIndex = index;
+                            });
+                          },
+                        ),
+                        items: _clubs[_selectedLeague!]!.map((club) {
+                          return Builder(
+                            builder: (BuildContext context) {
+                              return Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Image.network(club['icon']!, height: 100, width: 100),
+                                  SizedBox(height: 10),
+                                  Text(club['name']!, style: TextStyle(fontSize: 18)),
+                                ],
+                              );
+                            },
+                          );
+                        }).toList(),
+                      ),
+                    if (_selectedLeague != null && _clubs[_selectedLeague!] != null && _clubs[_selectedLeague!]!.isNotEmpty)
+                      ElevatedButton(
+                        onPressed: selectClub,
+                        child: Text('Zatwierdź klub'),
+                      ),
+                  ] else if (_selectedPlayer == null && _players.length == 1) ...[
+                    Text(
+                      'Ostatni gracz: ${_players.first['name']} wybiera klub',
+                      style: TextStyle(fontSize: 18),
+                      textAlign: TextAlign.center,
+                    ),
+                  ],
+                  if (isAdmin && _players.isEmpty)
+                    ElevatedButton(
+                      onPressed: startTournament,
+                      child: Text('Rozpocznij turniej'),
+                    ),
+                  if (_selectedClubs.isNotEmpty) ...[
+                    Text(
+                      'Wybrane kluby:',
+                      style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                      textAlign: TextAlign.center,
+                    ),
+                    ..._selectedClubs.entries.map((entry) {
+                      return Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Text(
+                            '${entry.key}: ${entry.value['name']}',
+                            style: TextStyle(fontSize: 18),
+                          ),
+                          if (entry.value['icon'] != null && entry.value['icon']!.isNotEmpty)
+                            Padding(
+                              padding: const EdgeInsets.only(left: 8.0),
+                              child: Image.network(
+                                entry.value['icon']!,
+                                width: 20,
+                                height: 20,
+                              ),
+                            ),
+                        ],
+                      );
+                    }).toList(),
+                  ],
                 ],
-              ],
+              ),
             ),
           ),
         ),

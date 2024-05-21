@@ -30,14 +30,14 @@ class TournamentInfoPage extends StatelessWidget {
     }
   }
 
-  Future<Map<String, String>> _fetchPlayerClubs() async {
+  Future<Map<String, Map<String, String>>> _fetchPlayerClubs() async {
     DatabaseReference ref = FirebaseDatabase.instance.ref('tournaments/$tournamentId/player_clubs');
     DatabaseEvent event = await ref.once();
-    Map<String, String> playerClubs = {};
+    Map<String, Map<String, String>> playerClubs = {};
     if (event.snapshot.value != null) {
       Map<dynamic, dynamic> clubsMap = Map<dynamic, dynamic>.from(event.snapshot.value as Map);
       clubsMap.forEach((key, value) {
-        playerClubs[key] = value.toString();
+        playerClubs[key] = Map<String, String>.from(value as Map);
       });
     }
     return playerClubs;
@@ -61,24 +61,38 @@ class TournamentInfoPage extends StatelessWidget {
         bool isEnded = tournament['ended'] ?? false;
         String location = tournament['location'];
 
-        return FutureBuilder<Map<String, String>>(
+        return FutureBuilder<Map<String, Map<String, String>>>(
           future: _fetchPlayerClubs(),
           builder: (context, playerClubsSnapshot) {
             if (!playerClubsSnapshot.hasData) {
               return Center(child: CircularProgressIndicator());
             }
 
-            Map<String, String> playerClubs = playerClubsSnapshot.data!;
+            Map<String, Map<String, String>> playerClubs = playerClubsSnapshot.data!;
             List<Widget> playerWidgets = [];
 
             if (tournament['players'] != null) {
               for (var player in tournament['players']) {
                 String playerName = player['name'].toString();
-                String playerInfo = playerName;
+                Widget playerWidget;
+
                 if (playerClubs.containsKey(playerName)) {
-                  playerInfo = '$playerName - ${playerClubs[playerName]}';
+                  String clubName = playerClubs[playerName]!['name']!;
+                  String clubIcon = playerClubs[playerName]!['icon']!;
+                  playerWidget = ListTile(
+                    title: Row(
+                      children: [
+                        Text('$playerName - $clubName'),
+                        SizedBox(width: 8),
+                        Image.network(clubIcon, width: 20, height: 20),
+                      ],
+                    ),
+                  );
+                } else {
+                  playerWidget = ListTile(title: Text(playerName));
                 }
-                playerWidgets.add(ListTile(title: Text(playerInfo)));
+
+                playerWidgets.add(playerWidget);
               }
             }
 

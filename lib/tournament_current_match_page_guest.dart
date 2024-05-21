@@ -18,7 +18,7 @@ class _TournamentCurrentMatchPageGuestState extends State<TournamentCurrentMatch
   TextEditingController _score2Controller = TextEditingController();
   bool isTournamentEnded = false;
   Map<String, dynamic>? currentMatch;
-  Map<String, String>? selectedClubs;
+  Map<String, Map<String, String>> selectedClubs = {};
 
   @override
   void initState() {
@@ -51,14 +51,21 @@ class _TournamentCurrentMatchPageGuestState extends State<TournamentCurrentMatch
 
   void fetchSelectedClubs() async {
     var tournamentData = await DatabaseHelper.instance.getTournamentData(widget.tournamentId);
-    setState(() {
-      selectedClubs = Map<String, String>.from(tournamentData?['selectedClubs'] ?? {});
-    });
+    if (tournamentData != null && tournamentData['selectedClubs'] != null) {
+      Map<dynamic, dynamic> rawSelectedClubs = tournamentData['selectedClubs'] as Map<dynamic, dynamic>;
+      Map<String, Map<String, String>> parsedSelectedClubs = {};
+      rawSelectedClubs.forEach((key, value) {
+        parsedSelectedClubs[key as String] = Map<String, String>.from(value as Map<dynamic, dynamic>);
+      });
+      setState(() {
+        selectedClubs = parsedSelectedClubs;
+      });
+    }
   }
 
   String getPlayerWithClub(String playerName) {
-    if (selectedClubs != null && selectedClubs!.containsKey(playerName)) {
-      return '$playerName (${selectedClubs![playerName]})';
+    if (selectedClubs.containsKey(playerName)) {
+      return '$playerName (${selectedClubs[playerName]!['name']})';
     }
     return playerName;
   }
@@ -98,39 +105,27 @@ class _TournamentCurrentMatchPageGuestState extends State<TournamentCurrentMatch
   }
 
   Widget buildMatchView() {
+    String player1 = currentMatch!['player1'];
+    String player2 = currentMatch!['player2'];
+    String clubName1 = selectedClubs[player1]?['name'] ?? 'Brak klubu';
+    String clubIcon1 = selectedClubs[player1]?['icon'] ?? '';
+    String clubName2 = selectedClubs[player2]?['name'] ?? 'Brak klubu';
+    String clubIcon2 = selectedClubs[player2]?['icon'] ?? '';
+
     return Form(
       key: _formKey,
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: <Widget>[
-          Text('Mecz: ${getPlayerWithClub(currentMatch!['player1'])} vs ${getPlayerWithClub(currentMatch!['player2'])}'),
-          TextFormField(
-            key: Key('score1'),
-            controller: _score1Controller,
-            decoration: InputDecoration(labelText: 'Wynik ${getPlayerWithClub(currentMatch!['player1'])}'),
-            validator: (value) {
-              if (value == null ||
-                  value.isEmpty ||
-                  int.tryParse(value) == null ||
-                  int.parse(value) < 0) {
-                return 'Wprowadź poprawnie wyniki (nieujemna liczba całkowita)';
-              }
-              return null;
-            },
-          ),
-          TextFormField(
-            key: Key('score2'),
-            controller: _score2Controller,
-            decoration: InputDecoration(labelText: 'Wynik ${getPlayerWithClub(currentMatch!['player2'])}'),
-            validator: (value) {
-              if (value == null ||
-                  value.isEmpty ||
-                  int.tryParse(value) == null ||
-                  int.parse(value) < 0) {
-                return 'Wprowadź poprawnie wyniki (nieujemna liczba całkowita)';
-              }
-              return null;
-            },
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              buildPlayerCard(player1, clubName1, clubIcon1, _score1Controller),
+              SizedBox(width: 10),
+              Text('VS', style: TextStyle(fontSize: 24)),
+              SizedBox(width: 10),
+              buildPlayerCard(player2, clubName2, clubIcon2, _score2Controller),
+            ],
           ),
           ElevatedButton(
             onPressed: () async {
@@ -173,6 +168,37 @@ class _TournamentCurrentMatchPageGuestState extends State<TournamentCurrentMatch
             child: Text('Zatwierdź wynik'),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget buildPlayerCard(String player, String club, String clubIcon, TextEditingController scoreController) {
+    return Expanded(
+      child: Card(
+        margin: EdgeInsets.symmetric(vertical: 10),
+        child: Padding(
+          padding: const EdgeInsets.all(8.0),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Text(player, style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+              SizedBox(height: 5),
+              Text(club, style: TextStyle(fontSize: 16)),
+              SizedBox(height: 5),
+              if (clubIcon.isNotEmpty) Image.network(clubIcon, width: 50, height: 50),
+              TextFormField(
+                controller: scoreController,
+                decoration: InputDecoration(labelText: 'Wynik $player ($club)'),
+                validator: (value) {
+                  if (value == null || value.isEmpty || int.tryParse(value) == null || int.parse(value) < 0) {
+                    return 'Wprowadź poprawnie wyniki (nieujemna liczba całkowita)';
+                  }
+                  return null;
+                },
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
