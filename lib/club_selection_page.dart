@@ -22,7 +22,6 @@ class _ClubSelectionPageState extends State<ClubSelectionPage> {
   final Map<String, List<String>> _leagues = {};
   final Map<String, List<Map<String, String>>> _clubs = {};
   List<Map<String, dynamic>> _players = [];
-  final List<String> _availableClubs = [];
   final Map<String, Map<String, String>> _selectedClubs = {};
   Map<String, dynamic>? _selectedPlayer;
   String? _selectedCountry;
@@ -65,7 +64,6 @@ class _ClubSelectionPageState extends State<ClubSelectionPage> {
       final players = List<Map<String, dynamic>>.from((event.snapshot.value as List).map((e) => Map<String, dynamic>.from(e)));
       setState(() {
         _players = players.where((player) => !_selectedClubs.containsKey(player['name'])).toList();
-        _availableClubs.clear();
       });
     });
   }
@@ -113,59 +111,96 @@ class _ClubSelectionPageState extends State<ClubSelectionPage> {
 
   void fetchCountriesAndTeams() {
     FirebaseDatabase.instance.ref('countries').once().then((DatabaseEvent event) {
-      final data = event.snapshot.value as Map<dynamic, dynamic>;
+      final data = event.snapshot.value as Map<dynamic, dynamic>?;
+      if (data == null) {
+        return;
+      }
       setState(() {
+        _countries.clear();
+        _leagues.clear();
+        _clubs.clear();
+
         data.forEach((country, countryData) {
           if (country != null && countryData != null) {
-            _countries.add(country as String);
-            final leagues = countryData['leagues'] as Map<dynamic, dynamic>;
-            _leagues[country] = leagues.keys.cast<String>().toList();
-            leagues.forEach((league, leagueData) {
-              if (leagueData != null) {
-                _clubs[league as String] = List<Map<String, String>>.from((leagueData as List).map((clubData) {
-                  if (clubData != null) {
-                    final clubMap = clubData as Map<dynamic, dynamic>;
-                    return {
-                      'name': clubMap['name'] as String,
-                      'icon': clubMap['icon'] as String
-                    };
-                  }
-                  return {'name': '', 'icon': ''};
-                }).where((clubMap) => clubMap['name']!.isNotEmpty));
+            final countryName = country as String;
+            if (!_countries.contains(countryName)) {
+              _countries.add(countryName);
+            }
+            final leagues = countryData['leagues'] as Map<dynamic, dynamic>?;
+            if (leagues != null) {
+              if (!_leagues.containsKey(countryName)) {
+                _leagues[countryName] = [];
               }
-            });
+              _leagues[countryName]!.addAll(leagues.keys.cast<String>().where((league) => !_leagues[countryName]!.contains(league)).toList());
+              leagues.forEach((league, leagueData) {
+                if (leagueData != null) {
+                  final leagueName = league as String;
+                  _clubs[leagueName] = List<Map<String, String>>.from((leagueData as List).map((clubData) {
+                    if (clubData != null) {
+                      final clubMap = clubData as Map<dynamic, dynamic>;
+                      final clubName = clubMap['name'] as String?;
+                      final clubIcon = clubMap['icon'] as String?;
+                      if (clubName != null && clubIcon != null && !_isClubSelected(clubName)) {
+                        return {
+                          'name': clubName,
+                          'icon': clubIcon
+                        };
+                      }
+                    }
+                    return {'name': '', 'icon': ''};
+                  }).where((clubMap) => clubMap['name']!.isNotEmpty));
+                }
+              });
+            }
           }
         });
-      });
 
-      FirebaseDatabase.instance.ref('national_teams').once().then((DatabaseEvent event) {
-        final data = event.snapshot.value as Map<dynamic, dynamic>;
-        setState(() {
-          _countries.add('National Teams');
-          _leagues['National Teams'] = ['Men', 'Women'];
-          _clubs['Men'] = List<Map<String, String>>.from((data['men'] as List).map((teamData) {
-            if (teamData != null) {
-              final teamMap = teamData as Map<dynamic, dynamic>;
-              return {
-                'name': teamMap['name'] as String,
-                'icon': teamMap['icon'] as String
-              };
+        FirebaseDatabase.instance.ref('national_teams').once().then((DatabaseEvent event) {
+          final data = event.snapshot.value as Map<dynamic, dynamic>?;
+          if (data == null) {
+            return;
+          }
+          setState(() {
+            if (!_countries.contains('National Teams')) {
+              _countries.add('National Teams');
             }
-            return {'name': '', 'icon': ''};
-          }).where((teamMap) => teamMap['name']!.isNotEmpty));
-          _clubs['Women'] = List<Map<String, String>>.from((data['women'] as List).map((teamData) {
-            if (teamData != null) {
-              final teamMap = teamData as Map<dynamic, dynamic>;
-              return {
-                'name': teamMap['name'] as String,
-                'icon': teamMap['icon'] as String
-              };
-            }
-            return {'name': '', 'icon': ''};
-          }).where((teamMap) => teamMap['name']!.isNotEmpty));
+            _leagues['National Teams'] = ['Men', 'Women'];
+            _clubs['Men'] = List<Map<String, String>>.from((data['men'] as List).map((teamData) {
+              if (teamData != null) {
+                final teamMap = teamData as Map<dynamic, dynamic>;
+                final teamName = teamMap['name'] as String?;
+                final teamIcon = teamMap['icon'] as String?;
+                if (teamName != null && teamIcon != null && !_isClubSelected(teamName)) {
+                  return {
+                    'name': teamName,
+                    'icon': teamIcon
+                  };
+                }
+              }
+              return {'name': '', 'icon': ''};
+            }).where((teamMap) => teamMap['name']!.isNotEmpty));
+            _clubs['Women'] = List<Map<String, String>>.from((data['women'] as List).map((teamData) {
+              if (teamData != null) {
+                final teamMap = teamData as Map<dynamic, dynamic>;
+                final teamName = teamMap['name'] as String?;
+                final teamIcon = teamMap['icon'] as String?;
+                if (teamName != null && teamIcon != null && !_isClubSelected(teamName)) {
+                  return {
+                    'name': teamName,
+                    'icon': teamIcon
+                  };
+                }
+              }
+              return {'name': '', 'icon': ''};
+            }).where((teamMap) => teamMap['name']!.isNotEmpty));
+          });
         });
       });
     });
+  }
+
+  bool _isClubSelected(String clubName) {
+    return _selectedClubs.values.any((club) => club['name'] == clubName);
   }
 
   void spinWheel() {
@@ -191,10 +226,15 @@ class _ClubSelectionPageState extends State<ClubSelectionPage> {
       }).then((_) {
         FirebaseDatabase.instance.ref('tournaments/${widget.tournamentId}/current_selection').remove().then((_) {
           setState(() {
+            _selectedClubs[playerName] = {
+              'name': clubName!,
+              'icon': clubIcon!,
+            };
             _selectedPlayer = null;
             _selectedClubIndex = 0;
             _selectedCountry = null;
             _selectedLeague = null;
+            fetchCountriesAndTeams();
           });
         });
       });
@@ -332,7 +372,9 @@ class _ClubSelectionPageState extends State<ClubSelectionPage> {
                             });
                           },
                         ),
-                        items: _clubs[_selectedLeague!]!.map((club) {
+                        items: _clubs[_selectedLeague!]!
+                            .where((club) => !_isClubSelected(club['name']!))
+                            .map((club) {
                           return Builder(
                             builder: (BuildContext context) {
                               return Column(
@@ -409,7 +451,9 @@ class _ClubSelectionPageState extends State<ClubSelectionPage> {
                             });
                           },
                         ),
-                        items: _clubs[_selectedLeague!]!.map((club) {
+                        items: _clubs[_selectedLeague!]!
+                            .where((club) => !_isClubSelected(club['name']!))
+                            .map((club) {
                           return Builder(
                             builder: (BuildContext context) {
                               return Column(

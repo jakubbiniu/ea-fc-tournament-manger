@@ -87,60 +87,98 @@ class _ClubSelectionPageGuestState extends State<ClubSelectionPageGuest> {
 
   void fetchCountriesAndTeams() {
     FirebaseDatabase.instance.ref('countries').once().then((DatabaseEvent event) {
-      final data = event.snapshot.value as Map<dynamic, dynamic>;
+      final data = event.snapshot.value as Map<dynamic, dynamic>?;
+      if (data == null) {
+        return;
+      }
       setState(() {
+        _countries.clear();
+        _leagues.clear();
+        _clubs.clear();
+
         data.forEach((country, countryData) {
           if (country != null && countryData != null) {
-            _countries.add(country as String);
-            final leagues = countryData['leagues'] as Map<dynamic, dynamic>;
-            _leagues[country] = leagues.keys.cast<String>().toList();
-            leagues.forEach((league, leagueData) {
-              if (leagueData != null) {
-                _clubs[league as String] = List<Map<String, String>>.from((leagueData as List).map((clubData) {
-                  if (clubData != null) {
-                    final clubMap = clubData as Map<dynamic, dynamic>;
-                    return {
-                      'name': clubMap['name'] as String,
-                      'icon': clubMap['icon'] as String
-                    };
-                  }
-                  return {'name': '', 'icon': ''};
-                }).where((clubMap) => clubMap['name']!.isNotEmpty));
+            final countryName = country as String;
+            if (!_countries.contains(countryName)) {
+              _countries.add(countryName);
+            }
+            final leagues = countryData['leagues'] as Map<dynamic, dynamic>?;
+            if (leagues != null) {
+              if (!_leagues.containsKey(countryName)) {
+                _leagues[countryName] = [];
               }
-            });
+              _leagues[countryName]!.addAll(leagues.keys.cast<String>().where((league) => !_leagues[countryName]!.contains(league)).toList());
+              leagues.forEach((league, leagueData) {
+                if (leagueData != null) {
+                  final leagueName = league as String;
+                  _clubs[leagueName] = List<Map<String, String>>.from((leagueData as List).map((clubData) {
+                    if (clubData != null) {
+                      final clubMap = clubData as Map<dynamic, dynamic>;
+                      final clubName = clubMap['name'] as String?;
+                      final clubIcon = clubMap['icon'] as String?;
+                      if (clubName != null && clubIcon != null && !_isClubSelected(clubName)) {
+                        return {
+                          'name': clubName,
+                          'icon': clubIcon
+                        };
+                      }
+                    }
+                    return {'name': '', 'icon': ''};
+                  }).where((clubMap) => clubMap['name']!.isNotEmpty));
+                }
+              });
+            }
           }
         });
-      });
 
-      FirebaseDatabase.instance.ref('national_teams').once().then((DatabaseEvent event) {
-        final data = event.snapshot.value as Map<dynamic, dynamic>;
-        setState(() {
-          _countries.add('National Teams');
-          _leagues['National Teams'] = ['Men', 'Women'];
-          _clubs['Men'] = List<Map<String, String>>.from((data['men'] as List).map((teamData) {
-            if (teamData != null) {
-              final teamMap = teamData as Map<dynamic, dynamic>;
-              return {
-                'name': teamMap['name'] as String,
-                'icon': teamMap['icon'] as String
-              };
+        FirebaseDatabase.instance.ref('national_teams').once().then((DatabaseEvent event) {
+          final data = event.snapshot.value as Map<dynamic, dynamic>?;
+          if (data == null) {
+            return;
+          }
+          setState(() {
+            if (!_countries.contains('National Teams')) {
+              _countries.add('National Teams');
             }
-            return {'name': '', 'icon': ''};
-          }).where((teamMap) => teamMap['name']!.isNotEmpty));
-          _clubs['Women'] = List<Map<String, String>>.from((data['women'] as List).map((teamData) {
-            if (teamData != null) {
-              final teamMap = teamData as Map<dynamic, dynamic>;
-              return {
-                'name': teamMap['name'] as String,
-                'icon': teamMap['icon'] as String
-              };
-            }
-            return {'name': '', 'icon': ''};
-          }).where((teamMap) => teamMap['name']!.isNotEmpty));
+            _leagues['National Teams'] = ['Men', 'Women'];
+            _clubs['Men'] = List<Map<String, String>>.from((data['men'] as List).map((teamData) {
+              if (teamData != null) {
+                final teamMap = teamData as Map<dynamic, dynamic>;
+                final teamName = teamMap['name'] as String?;
+                final teamIcon = teamMap['icon'] as String?;
+                if (teamName != null && teamIcon != null && !_isClubSelected(teamName)) {
+                  return {
+                    'name': teamName,
+                    'icon': teamIcon
+                  };
+                }
+              }
+              return {'name': '', 'icon': ''};
+            }).where((teamMap) => teamMap['name']!.isNotEmpty));
+            _clubs['Women'] = List<Map<String, String>>.from((data['women'] as List).map((teamData) {
+              if (teamData != null) {
+                final teamMap = teamData as Map<dynamic, dynamic>;
+                final teamName = teamMap['name'] as String?;
+                final teamIcon = teamMap['icon'] as String?;
+                if (teamName != null && teamIcon != null && !_isClubSelected(teamName)) {
+                  return {
+                    'name': teamName,
+                    'icon': teamIcon
+                  };
+                }
+              }
+              return {'name': '', 'icon': ''};
+            }).where((teamMap) => teamMap['name']!.isNotEmpty));
+          });
         });
       });
     });
   }
+
+  bool _isClubSelected(String clubName) {
+    return _selectedClubs.values.any((club) => club['name'] == clubName);
+  }
+
 
   void spinWheel() {
     if (_players.isEmpty) return;
@@ -163,6 +201,7 @@ class _ClubSelectionPageGuestState extends State<ClubSelectionPageGuest> {
         _selectedCountry = null;
         _selectedLeague = null;
         _selectedClubIndex = 0;
+        fetchCountriesAndTeams();
       });
       await dbHelper.updateTournamentPlayerClub(widget.tournamentId, _selectedClubs);
 
@@ -185,6 +224,7 @@ class _ClubSelectionPageGuestState extends State<ClubSelectionPageGuest> {
         _selectedCountry = null;
         _selectedLeague = null;
         _selectedClubIndex = 0;
+        fetchCountriesAndTeams();
       });
       await dbHelper.updateTournamentPlayerClub(widget.tournamentId, _selectedClubs);
     }
@@ -195,6 +235,8 @@ class _ClubSelectionPageGuestState extends State<ClubSelectionPageGuest> {
       });
     }
   }
+
+
 
   void startTournament() async {
     await dbHelper.startTournament(widget.tournamentId);
