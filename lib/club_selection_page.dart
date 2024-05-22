@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:firebase_database/firebase_database.dart';
 import 'package:flutter_fortune_wheel/flutter_fortune_wheel.dart';
 import 'package:carousel_slider/carousel_slider.dart';
+import 'package:shake/shake.dart';
 
 import 'tournament_details_page.dart';
 
@@ -30,6 +31,7 @@ class _ClubSelectionPageState extends State<ClubSelectionPage> {
   bool isAdmin = false;
   final random = Random();
   late StreamController<int> _wheelNotifier;
+  ShakeDetector? shakeDetector;
 
   @override
   void initState() {
@@ -40,11 +42,13 @@ class _ClubSelectionPageState extends State<ClubSelectionPage> {
     listenToPlayerSelection();
     listenToSelectedClubs();
     fetchCountriesAndTeams();
+    initShakeDetector();
   }
 
   @override
   void dispose() {
     _wheelNotifier.close();
+    shakeDetector?.stopListening();
     super.dispose();
   }
 
@@ -259,6 +263,20 @@ class _ClubSelectionPageState extends State<ClubSelectionPage> {
       return true;
     }
     return false;
+  }
+
+  void initShakeDetector() {
+    shakeDetector = ShakeDetector.autoStart(
+      onPhoneShake: () {
+        if (isAdmin && _selectedPlayer == null && _players.length > 1) {
+          spinWheel();
+        }
+      },
+      minimumShakeCount: 2,
+      shakeSlopTimeMS: 500,
+      shakeCountResetTime: 3500,
+      shakeThresholdGravity: 3,
+    );
   }
 
   @override

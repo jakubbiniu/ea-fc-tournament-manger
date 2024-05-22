@@ -6,6 +6,7 @@ import 'database_helper.dart';
 import 'tournament_details_page_guest.dart';
 import 'package:flutter_fortune_wheel/flutter_fortune_wheel.dart';
 import 'package:carousel_slider/carousel_slider.dart';
+import 'package:shake/shake.dart';
 
 class ClubSelectionPageGuest extends StatefulWidget {
   final int tournamentId;
@@ -30,6 +31,7 @@ class _ClubSelectionPageGuestState extends State<ClubSelectionPageGuest> {
   final random = Random();
   late StreamController<int> _wheelNotifier;
   final dbHelper = DatabaseHelper.instance;
+  ShakeDetector? shakeDetector;
 
   @override
   void initState() {
@@ -38,11 +40,13 @@ class _ClubSelectionPageGuestState extends State<ClubSelectionPageGuest> {
     fetchPlayers();
     fetchCountriesAndTeams();
     listenToSelectedClubs();
+    initShakeDetector();
   }
 
   @override
   void dispose() {
     _wheelNotifier.close();
+    shakeDetector?.stopListening();
     super.dispose();
   }
 
@@ -253,6 +257,20 @@ class _ClubSelectionPageGuestState extends State<ClubSelectionPageGuest> {
       return true;
     }
     return false;
+  }
+
+  void initShakeDetector() {
+    shakeDetector = ShakeDetector.autoStart(
+      onPhoneShake: () {
+        if (_selectedPlayer == null && _players.length > 1) {
+          spinWheel();
+        }
+      },
+      minimumShakeCount: 2,
+      shakeSlopTimeMS: 500,
+      shakeCountResetTime: 3500,
+      shakeThresholdGravity: 3,
+    );
   }
 
   @override
