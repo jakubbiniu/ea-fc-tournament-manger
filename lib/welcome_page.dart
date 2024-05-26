@@ -13,7 +13,14 @@ class WelcomePage extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('EA FC TOURNAMENT MANAGER'),
+        automaticallyImplyLeading: false,
+        title: const Text(
+          'EA FC TOURNAMENT MANAGER',
+          style: TextStyle(
+            fontSize: 18,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
         actions: [
           IconButton(
             icon: Icon(Icons.logout),
@@ -35,8 +42,9 @@ class WelcomePage extends StatelessWidget {
             },
           ),
         ],
+        centerTitle: true,
       ),
-      body: TournamentTabsPage(userId: user.email!),
+      body: TournamentTabsPage(userId: user.email!, user: user),
     );
   }
 }

@@ -73,6 +73,20 @@ class _TournamentCurrentMatchPageGuestState extends State<TournamentCurrentMatch
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      appBar: AppBar(
+        automaticallyImplyLeading: false,
+        title: Text("Aktualny Mecz"),
+        centerTitle: true,
+        flexibleSpace: Container(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: [Colors.blue, Colors.blueAccent],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+          ),
+        ),
+      ),
       body: currentMatch == null || isTournamentEnded
           ? buildNoMatchesView()
           : buildMatchView(),
@@ -84,20 +98,39 @@ class _TournamentCurrentMatchPageGuestState extends State<TournamentCurrentMatch
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: <Widget>[
-          Text(isTournamentEnded
-              ? "Turniej został zakończony."
-              : "Nie ma już meczy do rozegrania."),
+          Text(
+            isTournamentEnded
+                ? "Turniej został zakończony."
+                : "Nie ma już meczy do rozegrania.",
+            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+          ),
+          SizedBox(height: 20),
           ElevatedButton(
             onPressed: () => Navigator.pushReplacement(
                 context,
                 MaterialPageRoute(
                     builder: (context) => LoginPage(auth: FirebaseAuth.instance))),
-            child: Text('Powrót'),
+            style: ElevatedButton.styleFrom(
+              padding: EdgeInsets.symmetric(horizontal: 30, vertical: 15),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(20),
+              ),
+              backgroundColor: Colors.blueAccent,
+            ),
+            child: Text('Powrót', style: TextStyle(color: Colors.white)),
           ),
+          SizedBox(height: 20),
           if (!isTournamentEnded)
             ElevatedButton(
               onPressed: () => endTournament(),
-              child: Text('Zakończ turniej'),
+              style: ElevatedButton.styleFrom(
+                padding: EdgeInsets.symmetric(horizontal: 30, vertical: 15),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                backgroundColor: Colors.redAccent,
+              ),
+              child: Text('Zakończ turniej', style: TextStyle(color: Colors.white)),
             ),
         ],
       ),
@@ -112,62 +145,75 @@ class _TournamentCurrentMatchPageGuestState extends State<TournamentCurrentMatch
     String clubName2 = selectedClubs[player2]?['name'] ?? 'Brak klubu';
     String clubIcon2 = selectedClubs[player2]?['icon'] ?? '';
 
-    return Form(
-      key: _formKey,
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: <Widget>[
-          Row(
+    return SingleChildScrollView(
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Form(
+          key: _formKey,
+          child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              buildPlayerCard(player1, clubName1, clubIcon1, _score1Controller),
-              SizedBox(width: 10),
-              Text('VS', style: TextStyle(fontSize: 24)),
-              SizedBox(width: 10),
-              buildPlayerCard(player2, clubName2, clubIcon2, _score2Controller),
+            children: <Widget>[
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  buildPlayerCard(player1, clubName1, clubIcon1, _score1Controller),
+                  SizedBox(width: 10),
+                  Text('VS', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
+                  SizedBox(width: 10),
+                  buildPlayerCard(player2, clubName2, clubIcon2, _score2Controller),
+                ],
+              ),
+              SizedBox(height: 20),
+              ElevatedButton(
+                onPressed: () async {
+                  if (_formKey.currentState!.validate()) {
+                    bool confirm = await showDialog(
+                      context: context,
+                      builder: (BuildContext context) {
+                        return AlertDialog(
+                          title: Text("Potwierdzenie"),
+                          content: Text("Czy na pewno chcesz zatwierdzić wynik?"),
+                          actions: [
+                            TextButton(
+                              onPressed: () {
+                                Navigator.of(context).pop(false);
+                              },
+                              child: Text("Nie"),
+                            ),
+                            TextButton(
+                              onPressed: () {
+                                Navigator.of(context).pop(true);
+                              },
+                              child: Text("Tak"),
+                            ),
+                          ],
+                        );
+                      },
+                    );
+                    if (confirm) {
+                      updateMatch();
+                    }
+                  } else {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text('Wprowadź poprawnie wyniki'),
+                        duration: Duration(seconds: 2),
+                      ),
+                    );
+                  }
+                },
+                style: ElevatedButton.styleFrom(
+                  padding: EdgeInsets.symmetric(horizontal: 30, vertical: 15),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  backgroundColor: Colors.green,
+                ),
+                child: Text('Zatwierdź wynik', style: TextStyle(color: Colors.white)),
+              ),
             ],
           ),
-          ElevatedButton(
-            onPressed: () async {
-              if (_formKey.currentState!.validate()) {
-                bool confirm = await showDialog(
-                  context: context,
-                  builder: (BuildContext context) {
-                    return AlertDialog(
-                      title: Text("Potwierdzenie"),
-                      content: Text("Czy na pewno chcesz zatwierdzić wynik?"),
-                      actions: [
-                        TextButton(
-                          onPressed: () {
-                            Navigator.of(context).pop(false);
-                          },
-                          child: Text("Nie"),
-                        ),
-                        TextButton(
-                          onPressed: () {
-                            Navigator.of(context).pop(true);
-                          },
-                          child: Text("Tak"),
-                        ),
-                      ],
-                    );
-                  },
-                );
-                if (confirm) {
-                  updateMatch();
-                }
-              } else {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text('Wprowadź poprawnie wyniki'),
-                    duration: Duration(seconds: 2),
-                  ),
-                );
-              }
-            },
-            child: Text('Zatwierdź wynik'),
-          ),
-        ],
+        ),
       ),
     );
   }
@@ -176,25 +222,39 @@ class _TournamentCurrentMatchPageGuestState extends State<TournamentCurrentMatch
     return Expanded(
       child: Card(
         margin: EdgeInsets.symmetric(vertical: 10),
+        elevation: 5,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(15),
+        ),
         child: Padding(
-          padding: const EdgeInsets.all(8.0),
+          padding: const EdgeInsets.all(12.0),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               Text(player, style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
               SizedBox(height: 5),
               Text(club, style: TextStyle(fontSize: 16)),
-              SizedBox(height: 5),
+              SizedBox(height: 10),
               if (clubIcon.isNotEmpty) Image.network(clubIcon, width: 50, height: 50),
-              TextFormField(
-                controller: scoreController,
-                decoration: InputDecoration(labelText: 'Wynik $player ($club)'),
-                validator: (value) {
-                  if (value == null || value.isEmpty || int.tryParse(value) == null || int.parse(value) < 0) {
-                    return 'Wprowadź poprawnie wyniki (nieujemna liczba całkowita)';
-                  }
-                  return null;
-                },
+              Padding(
+                padding: const EdgeInsets.only(top: 10.0),
+                child: TextFormField(
+                  controller: scoreController,
+                  decoration: InputDecoration(
+                    labelText: 'Wynik',
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                  ),
+                  textAlign: TextAlign.center,
+                  keyboardType: TextInputType.number,
+                  validator: (value) {
+                    if (value == null || value.isEmpty || int.tryParse(value) == null || int.parse(value) < 0) {
+                      return 'Wprowadź poprawnie wyniki (nieujemna liczba całkowita)';
+                    }
+                    return null;
+                  },
+                ),
               ),
             ],
           ),
@@ -202,6 +262,7 @@ class _TournamentCurrentMatchPageGuestState extends State<TournamentCurrentMatch
       ),
     );
   }
+
 
   void updateMatch() async {
     await DatabaseHelper.instance.updateMatchScore(

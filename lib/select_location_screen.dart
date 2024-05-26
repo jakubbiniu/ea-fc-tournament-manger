@@ -34,7 +34,7 @@ class _SelectLocationScreenState extends State<SelectLocationScreen> {
   void getCurrentLocation() async {
     bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
     if (!serviceEnabled) {
-      return _showErrorDialog('Usługi lokalizacyjne wyłączone', 'Prosze włączyć usługi lokalizacyjne.');
+      return _showErrorDialog('Usługi lokalizacyjne wyłączone', 'Proszę włączyć usługi lokalizacyjne.');
     }
 
     LocationPermission permission = await Geolocator.checkPermission();
@@ -93,10 +93,14 @@ class _SelectLocationScreenState extends State<SelectLocationScreen> {
         controller: _searchController,
         decoration: InputDecoration(
           hintText: 'Szukaj lokalizacji',
-          suffixIcon: IconButton(
-            icon: Icon(Icons.search),
-            onPressed: _searchLocation,
+          prefixIcon: Icon(Icons.search, color: Colors.grey),
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(30),
+            borderSide: BorderSide.none,
           ),
+          filled: true,
+          fillColor: Colors.grey[200],
+          contentPadding: EdgeInsets.symmetric(vertical: 10, horizontal: 20),
         ),
         onSubmitted: (value) => _searchLocation(),
       ),
@@ -107,7 +111,7 @@ class _SelectLocationScreenState extends State<SelectLocationScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text('Wybierz lokalizacje'),
+        title: Text('Wybierz lokalizację'),
         actions: [
           IconButton(
             icon: Icon(Icons.check),
@@ -150,9 +154,16 @@ class _SelectLocationScreenState extends State<SelectLocationScreen> {
           ),
           Padding(
             padding: EdgeInsets.all(16.0),
-            child: ElevatedButton(
+            child: ElevatedButton.icon(
               onPressed: getCurrentLocation,
-              child: Text('Pobierz aktualną lokalizację'),
+              icon: Icon(Icons.my_location),
+              label: Text('Pobierz aktualną lokalizację'),
+              style: ElevatedButton.styleFrom(
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(30),
+                ),
+                padding: EdgeInsets.symmetric(vertical: 16, horizontal: 24),
+              ),
             ),
           ),
         ],

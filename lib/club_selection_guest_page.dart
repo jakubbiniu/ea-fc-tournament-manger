@@ -183,7 +183,6 @@ class _ClubSelectionPageGuestState extends State<ClubSelectionPageGuest> {
     return _selectedClubs.values.any((club) => club['name'] == clubName);
   }
 
-
   void spinWheel() {
     if (_players.isEmpty) return;
     final index = random.nextInt(_players.length);
@@ -240,13 +239,8 @@ class _ClubSelectionPageGuestState extends State<ClubSelectionPageGuest> {
     }
   }
 
-
-
   void startTournament() async {
     await dbHelper.startTournament(widget.tournamentId);
-    Navigator.pushReplacement(context, MaterialPageRoute(
-      builder: (context) => TournamentDetailsPageGuest(tournamentId: widget.tournamentId),
-    ));
   }
 
   bool get shouldHideWheel {
@@ -278,6 +272,17 @@ class _ClubSelectionPageGuestState extends State<ClubSelectionPageGuest> {
     return Scaffold(
       appBar: AppBar(
         automaticallyImplyLeading: false,
+        title: Text("Wybór Klubu"),
+        centerTitle: true,
+        flexibleSpace: Container(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: [Colors.blue, Colors.blueAccent],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+          ),
+        ),
       ),
       body: SafeArea(
         child: Center(
@@ -291,20 +296,27 @@ class _ClubSelectionPageGuestState extends State<ClubSelectionPageGuest> {
                   if (_selectedPlayer != null)
                     Text(
                       'Wylosowany gracz: ${_selectedPlayer!['name']}',
-                      style: TextStyle(fontSize: 24),
+                      style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
                       textAlign: TextAlign.center,
                     ),
                   if (_selectedPlayer == null && _players.isNotEmpty && _players.length > 1)
                     Text(
                       'Trwa losowanie klubów dla zawodników',
-                      style: TextStyle(fontSize: 24),
+                      style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
                       textAlign: TextAlign.center,
                     ),
                   SizedBox(height: 20),
                   if (_selectedPlayer == null && _players.length > 1)
                     ElevatedButton(
                       onPressed: spinWheel,
-                      child: Text('Losuj gracza'),
+                      style: ElevatedButton.styleFrom(
+                        padding: EdgeInsets.symmetric(horizontal: 30, vertical: 15),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        backgroundColor: Colors.blueAccent,
+                      ),
+                      child: Text('Losuj gracza', style: TextStyle(color: Colors.white)),
                     ),
                   if (!shouldHideWheel)
                     Container(
@@ -319,7 +331,7 @@ class _ClubSelectionPageGuestState extends State<ClubSelectionPageGuest> {
                             items: [
                               for (var player in _players)
                                 FortuneItem(
-                                  child: Text(player['name']),
+                                  child: Text(player['name'], style: TextStyle(fontSize: 16)),
                                 ),
                             ],
                             onAnimationEnd: () {
@@ -336,7 +348,7 @@ class _ClubSelectionPageGuestState extends State<ClubSelectionPageGuest> {
                   if (_selectedPlayer != null) ...[
                     Text(
                       'Wybierasz klub dla: ${_selectedPlayer!['name']}',
-                      style: TextStyle(fontSize: 18),
+                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                       textAlign: TextAlign.center,
                     ),
                     DropdownButton<String>(
@@ -352,7 +364,7 @@ class _ClubSelectionPageGuestState extends State<ClubSelectionPageGuest> {
                       items: _countries.map((String country) {
                         return DropdownMenuItem<String>(
                           value: country,
-                          child: Text(country),
+                          child: Text(country, style: TextStyle(fontSize: 16)),
                         );
                       }).toList(),
                     ),
@@ -369,7 +381,7 @@ class _ClubSelectionPageGuestState extends State<ClubSelectionPageGuest> {
                         items: _leagues[_selectedCountry!]!.map((String league) {
                           return DropdownMenuItem<String>(
                             value: league,
-                            child: Text(league),
+                            child: Text(league, style: TextStyle(fontSize: 16)),
                           );
                         }).toList(),
                       ),
@@ -405,12 +417,19 @@ class _ClubSelectionPageGuestState extends State<ClubSelectionPageGuest> {
                           final selectedClub = _clubs[_selectedLeague!]![_selectedClubIndex];
                           selectClub(selectedClub['name']!, selectedClub['icon']!);
                         },
-                        child: Text('Zatwierdź klub'),
+                        style: ElevatedButton.styleFrom(
+                          padding: EdgeInsets.symmetric(horizontal: 30, vertical: 15),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                          backgroundColor: Colors.green,
+                        ),
+                        child: Text('Zatwierdź klub', style: TextStyle(color: Colors.white)),
                       ),
                   ] else if (_selectedPlayer == null && _players.length == 1) ...[
                     Text(
                       'Ostatni gracz: ${_players.first['name']} wybiera klub',
-                      style: TextStyle(fontSize: 18),
+                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                       textAlign: TextAlign.center,
                     ),
                     DropdownButton<String>(
@@ -426,7 +445,7 @@ class _ClubSelectionPageGuestState extends State<ClubSelectionPageGuest> {
                       items: _countries.map((String country) {
                         return DropdownMenuItem<String>(
                           value: country,
-                          child: Text(country),
+                          child: Text(country, style: TextStyle(fontSize: 16)),
                         );
                       }).toList(),
                     ),
@@ -443,7 +462,7 @@ class _ClubSelectionPageGuestState extends State<ClubSelectionPageGuest> {
                         items: _leagues[_selectedCountry!]!.map((String league) {
                           return DropdownMenuItem<String>(
                             value: league,
-                            child: Text(league),
+                            child: Text(league, style: TextStyle(fontSize: 16)),
                           );
                         }).toList(),
                       ),
@@ -479,7 +498,14 @@ class _ClubSelectionPageGuestState extends State<ClubSelectionPageGuest> {
                           final selectedClub = _clubs[_selectedLeague!]![_selectedClubIndex];
                           selectClub(selectedClub['name']!, selectedClub['icon']!);
                         },
-                        child: Text('Zatwierdź klub'),
+                        style: ElevatedButton.styleFrom(
+                          padding: EdgeInsets.symmetric(horizontal: 30, vertical: 15),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                          backgroundColor: Colors.green,
+                        ),
+                        child: Text('Zatwierdź klub', style: TextStyle(color: Colors.white)),
                       ),
                   ],
                   if (_selectedClubs.isNotEmpty) ...[
@@ -488,31 +514,51 @@ class _ClubSelectionPageGuestState extends State<ClubSelectionPageGuest> {
                       style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
                       textAlign: TextAlign.center,
                     ),
-                    ..._selectedClubs.entries.map((entry) {
-                      return Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Text(
-                            '${entry.key}: ${entry.value['name']}',
-                            style: TextStyle(fontSize: 18),
-                          ),
-                          if (entry.value['icon'] != null && entry.value['icon']!.isNotEmpty)
-                            Padding(
-                              padding: const EdgeInsets.only(left: 8.0),
-                              child: Image.network(
-                                entry.value['icon']!,
-                                width: 20,
-                                height: 20,
+                    SizedBox(height: 10),
+                    Container(
+                      decoration: BoxDecoration(
+                        border: Border.all(color: Colors.blueAccent),
+                        borderRadius: BorderRadius.circular(10),
+                        gradient: LinearGradient(
+                          colors: [Colors.white, Colors.blue.shade50],
+                          begin: Alignment.topCenter,
+                          end: Alignment.bottomCenter,
+                        ),
+                      ),
+                      padding: const EdgeInsets.all(10.0),
+                      child: Column(
+                        children: _selectedClubs.entries.map((entry) {
+                          return Card(
+                            margin: EdgeInsets.symmetric(vertical: 5),
+                            child: ListTile(
+                              leading: entry.value['icon'] != null && entry.value['icon']!.isNotEmpty
+                                  ? Image.network(entry.value['icon']!, width: 40, height: 40)
+                                  : null,
+                              title: Text(
+                                entry.key,
+                                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                              ),
+                              subtitle: Text(
+                                entry.value['name']!,
+                                style: TextStyle(fontSize: 16),
                               ),
                             ),
-                        ],
-                      );
-                    }).toList(),
+                          );
+                        }).toList(),
+                      ),
+                    ),
                   ],
                   if (_players.isEmpty && _selectedClubs.isNotEmpty)
                     ElevatedButton(
                       onPressed: startTournament,
-                      child: Text('Rozpocznij turniej'),
+                      style: ElevatedButton.styleFrom(
+                        padding: EdgeInsets.symmetric(horizontal: 30, vertical: 15),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        backgroundColor: Colors.redAccent,
+                      ),
+                      child: Text('Rozpocznij turniej', style: TextStyle(color: Colors.white)),
                     ),
                 ],
               ),
@@ -522,4 +568,5 @@ class _ClubSelectionPageGuestState extends State<ClubSelectionPageGuest> {
       ),
     );
   }
+
 }

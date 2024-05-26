@@ -19,15 +19,20 @@ class TournamentDetailsPageGuest extends StatefulWidget {
 }
 
 class _TournamentDetailsPageGuestState extends State<TournamentDetailsPageGuest> with SingleTickerProviderStateMixin {
-  TabController? _tabController;
+  late TabController _tabController;
   bool isTournamentStarted = false;
+  String tournamentName = '';
   final dbHelper = DatabaseHelper.instance;
 
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 3, vsync: this);
+    _tabController.addListener(() {
+      setState(() {});
+    });
     checkIfTournamentStarted();
+    fetchTournamentName();
   }
 
   void checkIfTournamentStarted() async {
@@ -46,9 +51,16 @@ class _TournamentDetailsPageGuestState extends State<TournamentDetailsPageGuest>
     });
   }
 
+  void fetchTournamentName() async {
+    var tournamentData = await dbHelper.getTournamentData(widget.tournamentId);
+    setState(() {
+      tournamentName = tournamentData?['name'] ?? 'Turniej';
+    });
+  }
+
   @override
   void dispose() {
-    _tabController?.dispose();
+    _tabController.dispose();
     super.dispose();
   }
 
@@ -58,22 +70,84 @@ class _TournamentDetailsPageGuestState extends State<TournamentDetailsPageGuest>
     ));
   }
 
+  Widget _buildTabItem(int index, String label, IconData icon) {
+    bool isSelected = _tabController.index == index;
+
+    return Expanded(
+      child: GestureDetector(
+        onTap: () => _tabController.animateTo(index),
+        child: Container(
+          height: 50,
+          decoration: BoxDecoration(
+            color: isSelected ? Colors.blueAccent : Colors.white,
+            borderRadius: isSelected ? BorderRadius.circular(20) : BorderRadius.zero,
+          ),
+          child: Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(icon, color: isSelected ? Colors.white : Colors.black54),
+                Text(
+                  label,
+                  style: TextStyle(
+                    color: isSelected ? Colors.white : Colors.black54,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
         leading: IconButton(
-          icon: Icon(Icons.arrow_back),
+          icon: Icon(Icons.arrow_back, color: Colors.white),
           onPressed: _handleBackButton,
         ),
-        title: Center(child: Text('Szczegóły turnieju')),
-        bottom: TabBar(
-          controller: _tabController,
-          tabs: [
-            Tab(text: 'Informacje'),
-            Tab(text: isTournamentStarted ? 'Aktualny mecz' : 'Wybór klubów'),
-            Tab(text: 'Tabela'),
-          ],
+        title: Text('Turniej: $tournamentName', style: TextStyle(color: Colors.white)),
+        centerTitle: true,
+        flexibleSpace: Container(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: [Colors.blue, Colors.blueAccent],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+          ),
+        ),
+        bottom: PreferredSize(
+          preferredSize: Size.fromHeight(50),
+          child: Stack(
+            children: [
+              Container(
+                height: 50,
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black26,
+                      blurRadius: 10,
+                      offset: Offset(0, 2),
+                    ),
+                  ],
+                ),
+              ),
+              Row(
+                children: [
+                  _buildTabItem(0, 'Informacje', Icons.info),
+                  _buildTabItem(1, isTournamentStarted ? 'Aktualny mecz' : 'Wybór klubów', Icons.sports_soccer),
+                  _buildTabItem(2, 'Tabela', Icons.table_chart),
+                ],
+              ),
+            ],
+          ),
         ),
       ),
       body: TabBarView(

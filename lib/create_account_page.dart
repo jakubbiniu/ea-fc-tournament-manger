@@ -1,14 +1,14 @@
 import 'dart:async';
-
 import 'package:ea_fc_tournament_manager/welcome_page.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_database/firebase_database.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'login_page.dart';
 
 class CreateAccountPage extends StatefulWidget {
   final FirebaseAuth auth;
-  final DatabaseReference databaseRef; // Dodana referencja do bazy danych
+  final DatabaseReference databaseRef;
 
   const CreateAccountPage({Key? key, required this.auth, required this.databaseRef}) : super(key: key);
 
@@ -29,12 +29,10 @@ class _CreateAccountPageState extends State<CreateAccountPage> {
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
   final TextEditingController _nicknameController = TextEditingController();
-  final TextEditingController _phoneController = TextEditingController();
   final TextEditingController _errorController = TextEditingController();
 
   Future<void> _createAccountWithEmailAndPassword() async {
     try {
-
       final _dbRef = FirebaseDatabase.instance.ref();
       DatabaseReference usersRef = _dbRef.child('users');
       usersRef.once().then((DatabaseEvent event) async {
@@ -51,8 +49,7 @@ class _CreateAccountPageState extends State<CreateAccountPage> {
           if (_foundUser) {
             ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Podany nick jest już zajęty")));
             return;
-          }
-          else{
+          } else {
             final UserCredential userCredential = await widget.auth.createUserWithEmailAndPassword(
               email: _emailController.text,
               password: _passwordController.text,
@@ -65,8 +62,6 @@ class _CreateAccountPageState extends State<CreateAccountPage> {
               await widget.databaseRef.child('users').child(userId).set({
                 'email': _emailController.text,
                 'nickname': nickname,
-                'password': _passwordController.text,
-                'phone': _phoneController.text,
               });
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(
@@ -82,13 +77,10 @@ class _CreateAccountPageState extends State<CreateAccountPage> {
               );
             }
           }
-        } else {
         }
       }).catchError((error) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Wystąpił błąd podczas tworzenia konta")));
       });
-
-
     } catch (e) {
       String errorMessage = _getTranslatedErrorMessage(e);
       ScaffoldMessenger.of(context).showSnackBar(
@@ -100,40 +92,66 @@ class _CreateAccountPageState extends State<CreateAccountPage> {
     }
   }
 
-
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Tworzenie konta'),
       ),
-      body: Padding(
+      resizeToAvoidBottomInset: true,
+      body: SingleChildScrollView(
         padding: const EdgeInsets.all(16.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
+            Text(
+              'Utwórz swoje konto',
+              style: GoogleFonts.poppins(
+                textStyle: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 24),
             TextField(
               controller: _emailController,
-              decoration: InputDecoration(labelText: 'Email'),
+              decoration: InputDecoration(
+                labelText: 'Email',
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
             ),
+            const SizedBox(height: 16),
             TextField(
               controller: _nicknameController,
-              decoration: InputDecoration(labelText: 'Nick'),
+              decoration: InputDecoration(
+                labelText: 'Nick',
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
             ),
+            const SizedBox(height: 16),
             TextField(
               controller: _passwordController,
-              decoration: InputDecoration(labelText: 'Hasło'),
+              decoration: InputDecoration(
+                labelText: 'Hasło',
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
               obscureText: true,
             ),
-            TextField(
-              controller: _phoneController,
-              decoration: InputDecoration(labelText: 'Numer telefonu'),
-              keyboardType: TextInputType.phone,
-            ),
+            const SizedBox(height: 24),
             ElevatedButton(
               onPressed: _createAccountWithEmailAndPassword,
               child: const Text('Utwórz konto'),
+              style: ElevatedButton.styleFrom(
+                padding: const EdgeInsets.symmetric(vertical: 16),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
             ),
           ],
         ),

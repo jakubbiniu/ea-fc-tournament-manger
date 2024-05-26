@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'database_helper.dart';
+import 'package:intl/intl.dart';
 
 class TournamentInfoPageGuest extends StatelessWidget {
   final int tournamentId;
@@ -8,56 +9,94 @@ class TournamentInfoPageGuest extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return FutureBuilder<Map<String, dynamic>?>(
-      future: DatabaseHelper.instance.getTournamentData(tournamentId),
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return Center(child: CircularProgressIndicator());
-        }
-        if (!snapshot.hasData || snapshot.data == null) {
-          return Center(child: Text("Brak danych turnieju."));
-        }
+    return Scaffold(
+      appBar: AppBar(
+        automaticallyImplyLeading: false,
+        title: const Text('Szczegóły Turnieju'),
+        centerTitle: true,
+        flexibleSpace: Container(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: [Colors.blue, Colors.blueAccent],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+          ),
+        ),
+      ),
+      body: FutureBuilder<Map<String, dynamic>?>(
+        future: DatabaseHelper.instance.getTournamentData(tournamentId),
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return Center(child: CircularProgressIndicator());
+          }
+          if (!snapshot.hasData || snapshot.data == null) {
+            return Center(child: Text("Brak danych turnieju."));
+          }
 
-        Map<String, dynamic> tournament = snapshot.data!;
-        bool isEnded = tournament['ended'] ?? false;
-        bool isStarted = tournament['started'] ?? false;
+          Map<String, dynamic> tournament = snapshot.data!;
+          bool isEnded = tournament['ended'] ?? false;
+          bool isStarted = tournament['started'] ?? false;
 
-        Map<String, Map<String, String>> selectedClubs = {};
-        if (tournament['selectedClubs'] != null) {
-          Map<dynamic, dynamic> rawSelectedClubs = tournament['selectedClubs'] as Map<dynamic, dynamic>;
-          rawSelectedClubs.forEach((key, value) {
-            selectedClubs[key as String] = Map<String, String>.from(value as Map);
-          });
-        }
+          Map<String, Map<String, String>> selectedClubs = {};
+          if (tournament['selectedClubs'] != null) {
+            Map<dynamic, dynamic> rawSelectedClubs = tournament['selectedClubs'] as Map<dynamic, dynamic>;
+            rawSelectedClubs.forEach((key, value) {
+              selectedClubs[key as String] = Map<String, String>.from(value as Map);
+            });
+          }
 
-        return ListView(
-          children: <Widget>[
-            ListTile(title: Text('Nazwa turnieju: ${tournament['name']}')),
-            ListTile(title: Text('Status: ${isEnded ? "Zakończony" : "Trwa"}')),
-            ListTile(title: Text('Uczestnicy:')),
-            ...List<Widget>.from((tournament['players'] as List).map(
-                  (player) {
-                String playerName = player.toString();
-                if (isStarted && selectedClubs.containsKey(playerName)) {
-                  String clubName = selectedClubs[playerName]!['name']!;
-                  String clubIcon = selectedClubs[playerName]!['icon']!;
-                  return ListTile(
-                    title: Row(
-                      children: [
-                        Text('$playerName - $clubName'),
-                        SizedBox(width: 8),
-                        Image.network(clubIcon, width: 20, height: 20),
-                      ],
-                    ),
-                  );
-                } else {
-                  return ListTile(title: Text(playerName));
-                }
-              },
-            )),
-          ],
-        );
-      },
+          List<Widget> playerWidgets = [];
+          if (tournament['players'] != null) {
+            for (var player in tournament['players']) {
+              String playerName = player.toString();
+              if (isStarted && selectedClubs.containsKey(playerName)) {
+                String clubName = selectedClubs[playerName]!['name']!;
+                String clubIcon = selectedClubs[playerName]!['icon']!;
+                playerWidgets.add(
+                  ListTile(
+                    leading: Image.network(clubIcon, width: 40, height: 40),
+                    title: Text('$playerName - $clubName'),
+                  ),
+                );
+              } else {
+                playerWidgets.add(ListTile(title: Text(playerName)));
+              }
+            }
+          }
+
+          return ListView(
+            padding: EdgeInsets.all(16.0),
+            children: <Widget>[
+              Card(
+                elevation: 4,
+                margin: EdgeInsets.symmetric(vertical: 8),
+                child: ListTile(
+                  title: Text('Nazwa turnieju: ${tournament['name']}'),
+                ),
+              ),
+              Card(
+                elevation: 4,
+                margin: EdgeInsets.symmetric(vertical: 8),
+                child: ListTile(
+                  title: Text('Status: ${isEnded ? "Zakończony" : "Trwa"}'),
+                ),
+              ),
+              Card(
+                elevation: 4,
+                margin: EdgeInsets.symmetric(vertical: 8),
+                child: ListTile(
+                  title: Text('Uczestnicy:'),
+                  subtitle: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: playerWidgets,
+                  ),
+                ),
+              ),
+            ],
+          );
+        },
+      ),
     );
   }
 }

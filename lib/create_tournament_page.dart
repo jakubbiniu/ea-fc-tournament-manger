@@ -1,7 +1,7 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_database/firebase_database.dart';
 import 'package:intl/intl.dart';
-import 'dart:math';
 import 'package:latlong2/latlong.dart';
 import 'package:geocoding/geocoding.dart';
 import 'tournament_details_page.dart';
@@ -9,8 +9,9 @@ import 'select_location_screen.dart';
 
 class CreateTournamentPage extends StatefulWidget {
   final String userId;
+  final User user;
 
-  CreateTournamentPage({required this.userId});
+  CreateTournamentPage({required this.userId,required this.user});
 
   @override
   _CreateTournamentPageState createState() => _CreateTournamentPageState();
@@ -30,10 +31,7 @@ class _CreateTournamentPageState extends State<CreateTournamentPage> {
   TextEditingController _nameController = TextEditingController();
   LatLng? _selectedLocation;
 
-  @override
-  void initState() {
-    super.initState();
-  }
+  double _dragProgress = 0.0;
 
   void _addPlayerByEmailOrUsername() async {
     DatabaseReference usersRef = _dbRef.child('users');
@@ -68,43 +66,80 @@ class _CreateTournamentPageState extends State<CreateTournamentPage> {
     });
   }
 
-  void _showAddGuestDialog() {
+  void _showAddPlayerDialog() {
     showDialog(
-        context: context,
-        builder: (context) {
-          return AlertDialog(
-            title: Text('Dodaj gościa'),
-            content: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                TextField(
-                  controller: _nameController,
-                  decoration: InputDecoration(labelText: 'Imię gościa'),
-                ),
-              ],
-            ),
-            actions: [
-              TextButton(
-                child: Text('Anuluj'),
-                onPressed: () => Navigator.pop(context),
-              ),
-              TextButton(
-                child: Text('Dodaj'),
-                onPressed: () {
-                  if (_nameController.text.isNotEmpty) {
-                    setState(() {
-                      _players.add({'name': '${_nameController.text} (Gość)', 'id': null});
-                      _nameController.clear();
-                      Navigator.pop(context);
-                    });
-                  } else {
-                    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Proszę wypełnić wszystkie pola")));
-                  }
-                },
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: Text('Dodaj gracza'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: _userController,
+                decoration: InputDecoration(labelText: 'Email/Username gracza'),
               ),
             ],
-          );
-        }
+          ),
+          actions: [
+            TextButton(
+              child: Text('Anuluj'),
+              onPressed: () => Navigator.pop(context),
+            ),
+            ElevatedButton(
+              child: Text('Dodaj'),
+              onPressed: () {
+                if (_userController.text.isNotEmpty) {
+                  _addPlayerByEmailOrUsername();
+                  Navigator.pop(context);
+                } else {
+                  ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Proszę wypełnić wszystkie pola")));
+                }
+              },
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  void _showAddGuestDialog() {
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: Text('Dodaj gościa'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: _nameController,
+                decoration: InputDecoration(labelText: 'Imię gościa'),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              child: Text('Anuluj'),
+              onPressed: () => Navigator.pop(context),
+            ),
+            ElevatedButton(
+              child: Text('Dodaj'),
+              onPressed: () {
+                if (_nameController.text.isNotEmpty) {
+                  setState(() {
+                    _players.add({'name': '${_nameController.text} (Gość)', 'id': null});
+                    _nameController.clear();
+                    Navigator.pop(context);
+                  });
+                } else {
+                  ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Proszę wypełnić wszystkie pola")));
+                }
+              },
+            ),
+          ],
+        );
+      },
     );
   }
 
@@ -159,7 +194,7 @@ class _CreateTournamentPageState extends State<CreateTournamentPage> {
         }
       } catch (e) {
         ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text("Nie udało się ustalić współrzędnych z adresu"))
+          SnackBar(content: Text("Nie udało się ustalić współrzędnych z adresu")),
         );
         return;
       }
@@ -195,13 +230,13 @@ class _CreateTournamentPageState extends State<CreateTournamentPage> {
         teams.add({
           'name': '${player1['name']} & ${player2['name']}',
           'id': teamId,
-          'second_id': secondId
+          'second_id': secondId,
         });
       } else {
         teams.add({
           'name': '${shuffledPlayers[i]['name']}',
           'id': shuffledPlayers[i]['id'],
-          'second_id': null
+          'second_id': null,
         });
       }
     }
@@ -209,11 +244,52 @@ class _CreateTournamentPageState extends State<CreateTournamentPage> {
     return teams;
   }
 
+  void _createTournament() {
+    if (_formKey.currentState!.validate()) {
+      List<Map<String, dynamic>> finalPlayers = _isTwoPersonTeams ? _createTeams(_players) : _players;
+      DatabaseReference newRef = _dbRef.child('tournaments').push();
+      newRef.set({
+        'name': _tournamentNameController.text,
+        'date': _tournamentDate!.millisecondsSinceEpoch,
+        'location': _isOnline ? 'Online' : "${_selectedLocation!.latitude}, ${_selectedLocation!.longitude}",
+        'players': finalPlayers,
+        'ended': false,
+        'admin': widget.userId
+      }).then((_) {
+        createMatches(newRef.key!, finalPlayers);
+        Navigator.pushReplacement(context, MaterialPageRoute(
+          builder: (context) => TournamentDetailsPage(tournamentId: newRef.key!, userId: widget.userId, user: widget.user),
+        ));
+      });
+    }
+  }
+
+  void _onHorizontalDragUpdate(DragUpdateDetails details, BoxConstraints constraints) {
+    setState(() {
+      _dragProgress += details.primaryDelta! / constraints.maxWidth;
+      _dragProgress = _dragProgress.clamp(0.0, 1.0);
+    });
+  }
+
+  void _onHorizontalDragEnd(DragEndDetails details) {
+    if (_dragProgress > 0.8) {
+      if (_formKey.currentState!.validate()) {
+        _createTournament();
+      }
+    }
+    setState(() {
+      _dragProgress = 0.0;
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text('Stwórz turniej FIFA')),
+      appBar: AppBar(
+        automaticallyImplyLeading: false,
+        title: Text('Stwórz turniej FIFA'),
+        centerTitle: true,
+      ),
       body: Form(
         key: _formKey,
         child: ListView(
@@ -221,7 +297,12 @@ class _CreateTournamentPageState extends State<CreateTournamentPage> {
           children: <Widget>[
             TextFormField(
               controller: _tournamentNameController,
-              decoration: InputDecoration(labelText: 'Nazwa turnieju'),
+              decoration: InputDecoration(
+                labelText: 'Nazwa turnieju',
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
               validator: (value) {
                 if (value == null || value.isEmpty) {
                   return 'Proszę wprowadzić nazwę turnieju';
@@ -229,10 +310,14 @@ class _CreateTournamentPageState extends State<CreateTournamentPage> {
                 return null;
               },
             ),
+            SizedBox(height: 16),
             TextFormField(
               controller: _dateController,
               decoration: InputDecoration(
                 labelText: 'Data turnieju',
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
                 suffixIcon: Icon(Icons.calendar_today),
               ),
               readOnly: true,
@@ -256,11 +341,11 @@ class _CreateTournamentPageState extends State<CreateTournamentPage> {
                   );
                   if (pickedTime != null) {
                     DateTime finalDateTime = DateTime(
-                        pickedDate.year,
-                        pickedDate.month,
-                        pickedDate.day,
-                        pickedTime.hour,
-                        pickedTime.minute
+                      pickedDate.year,
+                      pickedDate.month,
+                      pickedDate.day,
+                      pickedTime.hour,
+                      pickedTime.minute,
                     );
                     setState(() {
                       _tournamentDate = finalDateTime;
@@ -270,6 +355,7 @@ class _CreateTournamentPageState extends State<CreateTournamentPage> {
                 }
               },
             ),
+            SizedBox(height: 16),
             SwitchListTile(
               title: Text('Turniej online'),
               value: _isOnline,
@@ -292,52 +378,109 @@ class _CreateTournamentPageState extends State<CreateTournamentPage> {
             IgnorePointer(
               ignoring: _isOnline,
               child: ListTile(
-                title: Text('Wybierz lokalizacje turnieju'),
+                title: Text('Wybierz lokalizację turnieju'),
                 subtitle: Text(_locationController.text.isEmpty ? 'Brak wybranej lokalizacji' : _locationController.text),
                 onTap: _openMapAndSelectLocation,
               ),
             ),
-            TextFormField(
-              controller: _userController,
-              decoration: InputDecoration(labelText: 'Email/Username gracza'),
-              onFieldSubmitted: (value) => _addPlayerByEmailOrUsername(),
-            ),
+            SizedBox(height: 16),
             ElevatedButton(
-              onPressed: _addPlayerByEmailOrUsername,
+              onPressed: _showAddPlayerDialog,
               child: Text('Dodaj gracza'),
+              style: ElevatedButton.styleFrom(
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                padding: EdgeInsets.symmetric(vertical: 16),
+              ),
             ),
+            SizedBox(height: 8),
             ElevatedButton(
               onPressed: _showAddGuestDialog,
               child: Text('Dodaj gościa'),
-            ),
-            ..._players.map((player) => ListTile(
-              title: Text(player['name']),
-              trailing: IconButton(
-                icon: Icon(Icons.delete),
-                onPressed: () => setState(() => _players.remove(player)),
+              style: ElevatedButton.styleFrom(
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                padding: EdgeInsets.symmetric(vertical: 16),
               ),
-            )).toList(),
-            ElevatedButton(
-              onPressed: () {
-                if (_formKey.currentState!.validate()) {
-                  List<Map<String, dynamic>> finalPlayers = _isTwoPersonTeams ? _createTeams(_players) : _players;
-                  DatabaseReference newRef = _dbRef.child('tournaments').push();
-                  newRef.set({
-                    'name': _tournamentNameController.text,
-                    'date': _tournamentDate!.millisecondsSinceEpoch,
-                    'location': _isOnline ? 'Online' : "${_selectedLocation!.latitude}, ${_selectedLocation!.longitude}",
-                    'players': finalPlayers,
-                    'ended': false,
-                    'admin': widget.userId
-                  }).then((_) {
-                    createMatches(newRef.key!, finalPlayers);
-                    Navigator.pushReplacement(context, MaterialPageRoute(
-                      builder: (context) => TournamentDetailsPage(tournamentId: newRef.key!, userId: widget.userId),
-                    ));
-                  });
-                }
+            ),
+            SizedBox(height: 16),
+            Text(
+              'Lista graczy',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            ),
+            SizedBox(height: 8),
+            _players.isEmpty
+                ? Center(
+              child: Text('Brak dodanych graczy'),
+            )
+                : Column(
+              children: _players.map((player) {
+                return Card(
+                  elevation: 4,
+                  margin: EdgeInsets.symmetric(vertical: 8),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: ListTile(
+                    leading: CircleAvatar(
+                      child: Text(player['name'][0].toUpperCase()),
+                    ),
+                    title: Text(player['name']),
+                    trailing: IconButton(
+                      icon: Icon(Icons.delete, color: Colors.red),
+                      onPressed: () => setState(() => _players.remove(player)),
+                    ),
+                  ),
+                );
+              }).toList(),
+            ),
+            SizedBox(height: 16),
+            LayoutBuilder(
+              builder: (context, constraints) {
+                return GestureDetector(
+                  onHorizontalDragUpdate: (details) => _onHorizontalDragUpdate(details, constraints),
+                  onHorizontalDragEnd: _onHorizontalDragEnd,
+                  child: Stack(
+                    children: [
+                      Container(
+                        height: 80,
+                        decoration: BoxDecoration(
+                          color: Colors.grey[200],
+                          borderRadius: BorderRadius.circular(40),
+                          border: Border.all(color: Colors.green, width: 2),
+                        ),
+                        alignment: Alignment.center,
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Text(
+                              'Przeciągnij, aby utworzyć turniej',
+                              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                            ),
+                            SizedBox(width: 10),
+                            Icon(Icons.arrow_forward, color: Colors.green),
+                          ],
+                        ),
+                      ),
+                      Positioned(
+                        left: 0,
+                        top: 0,
+                        bottom: 0,
+                        child: Container(
+                          height: 80,
+                          width: constraints.maxWidth * _dragProgress,
+                          decoration: BoxDecoration(
+                            color: Colors.green,
+                            borderRadius: BorderRadius.circular(40),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                );
               },
-              child: Text('Utwórz turniej'),
             ),
           ],
         ),
