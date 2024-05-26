@@ -51,7 +51,6 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
       ),
     );
 
-    // Show cracked screen and navigate to LoginPage after the animation completes
     _controller.addStatusListener((status) {
       if (status == AnimationStatus.completed) {
         setState(() {
@@ -85,29 +84,29 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: GestureDetector(
-        onTap: _startAnimation,
-        child: Stack(
-          children: [
-            // Background image
-            Positioned.fill(
-              child: Image.asset('assets/grass.jpg', fit: BoxFit.cover),
-            ),
-            AnimatedOpacity(
-              opacity: _showText ? 1.0 : 0.0,
-              duration: Duration(milliseconds: 500),
-              child: Align(
-                alignment: Alignment.topCenter,
-                child: Padding(
-                  padding: const EdgeInsets.only(top: 50.0),
-                  child: Text(
-                    'Dotknij piłkę aby uruchomić aplikację',
-                    style: TextStyle(fontSize: 18.0, fontWeight: FontWeight.bold),
-                  ),
+      body: Stack(
+        children: [
+          // Background image
+          Positioned.fill(
+            child: Image.asset('assets/grass.jpg', fit: BoxFit.cover),
+          ),
+          AnimatedOpacity(
+            opacity: _showText ? 1.0 : 0.0,
+            duration: Duration(milliseconds: 500),
+            child: Align(
+              alignment: Alignment.topCenter,
+              child: Padding(
+                padding: const EdgeInsets.only(top: 50.0),
+                child: Text(
+                  'Dotknij piłkę aby uruchomić aplikację',
+                  style: TextStyle(fontSize: 18.0, fontWeight: FontWeight.bold),
                 ),
               ),
             ),
-            Center(
+          ),
+          Center(
+            child: GestureDetector(
+              onTap: _startAnimation,
               child: AnimatedBuilder(
                 animation: _controller,
                 builder: (context, child) {
@@ -126,15 +125,15 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
                 },
               ),
             ),
-            if (_showCrackedScreen)
-              Positioned.fill(
-                child: Opacity(
-                  opacity: 0.9, // Adjust the opacity as needed
-                  child: Image.asset('assets/broken.png', fit: BoxFit.cover),
-                ),
+          ),
+          if (_showCrackedScreen)
+            Positioned.fill(
+              child: Opacity(
+                opacity: 0.9, // Adjust the opacity as needed
+                child: Image.asset('assets/broken.png', fit: BoxFit.cover),
               ),
-          ],
-        ),
+            ),
+        ],
       ),
     );
   }
