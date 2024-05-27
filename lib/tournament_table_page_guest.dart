@@ -109,16 +109,16 @@ class _TournamentTablePageGuestState extends State<TournamentTablePageGuest> {
 
       rows.add(DataRow(
         cells: [
-          DataCell(Text(rank.toString())),
+          DataCell(FittedBox(child: Text(rank.toString()))),
           DataCell(Image.network(playerClubs[player]!, width: 30, height: 30)),
-          DataCell(Text(player)),
-          DataCell(Text(matchesPlayed[player].toString())),
-          DataCell(Text(point.toString())),
-          DataCell(Text(
-              ((goalsScored[player] ?? 0) - (goalsConceded[player] ?? 0))
-                  .toString())),
+          DataCell(FittedBox(child: Text(player))),
+          DataCell(FittedBox(child: Text(matchesPlayed[player].toString()))),
+          DataCell(FittedBox(child: Text(point.toString()))),
+          DataCell(FittedBox(child: Text(
+              ((goalsScored[player] ?? 0) - (goalsConceded[player] ?? 0)).toString()))),
         ],
       ));
+
       rank++;
     });
 
@@ -154,7 +154,12 @@ class _TournamentTablePageGuestState extends State<TournamentTablePageGuest> {
           children: [
             Image.network(playerClubs[player1]!, width: 30, height: 30),
             SizedBox(width: 8),
-            Text("$player1    $score1:$score2    $player2"),
+            Flexible(
+              child: FittedBox(
+                fit: BoxFit.scaleDown,
+                child: Text("$player1    $score1:$score2    $player2"),
+              ),
+            ),
             SizedBox(width: 8),
             Image.network(playerClubs[player2]!, width: 30, height: 30),
           ],

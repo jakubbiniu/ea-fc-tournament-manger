@@ -189,7 +189,12 @@ class _TournamentTablePageState extends State<TournamentTablePage> {
           children: [
             Image.network(playerClubs[player1]!, width: 30, height: 30),
             SizedBox(width: 8),
-            Text("$player1    $score1:$score2    $player2"),
+            Flexible(
+              child: FittedBox(
+                fit: BoxFit.scaleDown,
+                child: Text("$player1    $score1:$score2    $player2"),
+              ),
+            ),
             SizedBox(width: 8),
             Image.network(playerClubs[player2]!, width: 30, height: 30),
           ],
@@ -198,6 +203,7 @@ class _TournamentTablePageState extends State<TournamentTablePage> {
     }
     return matchScores;
   }
+
 
   @override
   Widget build(BuildContext context) {
