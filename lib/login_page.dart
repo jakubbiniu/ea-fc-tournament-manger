@@ -23,7 +23,6 @@ class LoginPage extends StatefulWidget {
   _LoginPageState createState() => _LoginPageState();
 }
 
-
 class _LoginPageState extends State<LoginPage> {
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
@@ -43,14 +42,38 @@ class _LoginPageState extends State<LoginPage> {
           ),
         );
       }
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Nie udało się zalogować'),
-          duration: Duration(seconds: 3), // Czas wyświetlania komunikatu
-        ),
-      );
+    } on FirebaseAuthException catch (e) {
+      if (e.code == 'invalid-credential' || e.code == 'wrong-password') {
+        // Sprawdzenie, czy konto z podanym adresem email istnieje
+        try {
+          final List<String> signInMethods = await widget.auth.fetchSignInMethodsForEmail(_emailController.text);
+          if (signInMethods.isEmpty) {
+            _showErrorSnackbar('Nie istnieje konto z podanym mailem.');
+          } else {
+            _showErrorSnackbar('Podano złe hasło.');
+          }
+        } catch (e) {
+          _showErrorSnackbar('Nie udało się zweryfikować danych. Spróbuj ponownie.');
+        }
+      } else if (e.code == 'invalid-email') {
+        _showErrorSnackbar('Podany email jest nieprawidłowy.');
+      } else if (e.code == 'user-disabled') {
+        _showErrorSnackbar('Konto zostało dezaktywowane.');
+      } else if (e.code == 'too-many-requests') {
+        _showErrorSnackbar('Zbyt wiele nieudanych prób logowania. Spróbuj ponownie później.');
+      } else {
+        _showErrorSnackbar('Nie udało się zalogować. Spróbuj ponownie.');
+      }
     }
+  }
+
+  void _showErrorSnackbar(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        duration: Duration(seconds: 3), // Czas wyświetlania komunikatu
+      ),
+    );
   }
 
   @override
@@ -172,6 +195,4 @@ class _LoginPageState extends State<LoginPage> {
       ),
     );
   }
-
-
 }
