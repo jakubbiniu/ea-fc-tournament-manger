@@ -67,6 +67,49 @@ class _LoginPageState extends State<LoginPage> {
     }
   }
 
+  Future<void> _resetPassword() async {
+    TextEditingController emailController = TextEditingController();
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: Text('Resetowanie hasła'),
+          content: TextField(
+            controller: emailController,
+            decoration: InputDecoration(
+              labelText: 'Email',
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () async {
+                Navigator.of(context).pop();
+                if (emailController.text.isEmpty) {
+                  _showErrorSnackbar('Podaj adres e-mail, aby zresetować hasło.');
+                  return;
+                }
+
+                try {
+                  await widget.auth.sendPasswordResetEmail(email: emailController.text);
+                  _showErrorSnackbar('Email z instrukcją resetowania hasła został wysłany.');
+                } on FirebaseAuthException catch (e) {
+                  if (e.code == 'invalid-email') {
+                    _showErrorSnackbar('Podany email jest nieprawidłowy.');
+                  } else if (e.code == 'user-not-found') {
+                    _showErrorSnackbar('Nie istnieje konto z podanym mailem.');
+                  } else {
+                    _showErrorSnackbar('Nie udało się wysłać emaila. Spróbuj ponownie.');
+                  }
+                }
+              },
+              child: Text('Wyślij'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
   void _showErrorSnackbar(String message) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
@@ -75,7 +118,6 @@ class _LoginPageState extends State<LoginPage> {
       ),
     );
   }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -117,29 +159,57 @@ class _LoginPageState extends State<LoginPage> {
               ),
               obscureText: true,
             ),
-            const SizedBox(height: 24),
-            ElevatedButton(
-              onPressed: _signInWithEmailAndPassword,
-              child: const Text('Zaloguj się'),
-              style: ElevatedButton.styleFrom(
-                padding: const EdgeInsets.symmetric(vertical: 16),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
+            const SizedBox(height: 8),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                TextButton(
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => CreateAccountPage(auth: widget.auth, databaseRef: widget.databaseRef),
+                      ),
+                    );
+                  },
+                  child: const Text('Utwórz konto'),
+                ),
+                TextButton(
+                  onPressed: _resetPassword,
+                  child: const Text('Zapomniałeś hasła?'),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            Container(
+              height: 50,
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [Colors.blueAccent, Colors.lightBlueAccent],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.transparent,
+                  shadowColor: Colors.transparent,
+                ),
+                onPressed: _signInWithEmailAndPassword,
+                child: Text(
+                  'Zaloguj się',
+                  style: GoogleFonts.poppins(
+                    textStyle: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                    ),
+                  ),
                 ),
               ),
             ),
             const SizedBox(height: 16),
-            TextButton(
-              onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => CreateAccountPage(auth: widget.auth, databaseRef: widget.databaseRef),
-                  ),
-                );
-              },
-              child: const Text('Utwórz konto'),
-            ),
             TextButton(
               onPressed: () {
                 Navigator.push(
@@ -195,4 +265,5 @@ class _LoginPageState extends State<LoginPage> {
       ),
     );
   }
+
 }

@@ -11,7 +11,7 @@ class CreateTournamentPage extends StatefulWidget {
   final String userId;
   final User user;
 
-  CreateTournamentPage({required this.userId,required this.user});
+  CreateTournamentPage({required this.userId, required this.user});
 
   @override
   _CreateTournamentPageState createState() => _CreateTournamentPageState();
@@ -86,7 +86,7 @@ class _CreateTournamentPageState extends State<CreateTournamentPage> {
               child: Text('Anuluj'),
               onPressed: () => Navigator.pop(context),
             ),
-            ElevatedButton(
+            TextButton(
               child: Text('Dodaj'),
               onPressed: () {
                 if (_userController.text.isNotEmpty) {
@@ -123,7 +123,7 @@ class _CreateTournamentPageState extends State<CreateTournamentPage> {
               child: Text('Anuluj'),
               onPressed: () => Navigator.pop(context),
             ),
-            ElevatedButton(
+            TextButton(
               child: Text('Dodaj'),
               onPressed: () {
                 if (_nameController.text.isNotEmpty) {
@@ -246,6 +246,13 @@ class _CreateTournamentPageState extends State<CreateTournamentPage> {
 
   void _createTournament() {
     if (_formKey.currentState!.validate()) {
+      if (!_isOnline && _selectedLocation == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("Proszę wybrać lokalizację turnieju")),
+        );
+        return;
+      }
+
       List<Map<String, dynamic>> finalPlayers = _isTwoPersonTeams ? _createTeams(_players) : _players;
       DatabaseReference newRef = _dbRef.child('tournaments').push();
       newRef.set({
@@ -362,7 +369,10 @@ class _CreateTournamentPageState extends State<CreateTournamentPage> {
               onChanged: (bool value) {
                 setState(() {
                   _isOnline = value;
-                  if (value) _locationController.clear();
+                  if (value) {
+                    _locationController.clear();
+                    _selectedLocation = null;
+                  }
                 });
               },
             ),
@@ -377,33 +387,64 @@ class _CreateTournamentPageState extends State<CreateTournamentPage> {
             ),
             IgnorePointer(
               ignoring: _isOnline,
-              child: ListTile(
-                title: Text('Wybierz lokalizację turnieju'),
-                subtitle: Text(_locationController.text.isEmpty ? 'Brak wybranej lokalizacji' : _locationController.text),
+              child: GestureDetector(
                 onTap: _openMapAndSelectLocation,
+                child: Container(
+                  padding: EdgeInsets.symmetric(vertical: 16, horizontal: 12),
+                  decoration: BoxDecoration(
+                    border: Border.all(color: Colors.blue),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(Icons.location_on, color: Colors.blue),
+                      SizedBox(width: 12),
+                      Expanded(
+                        child: Text(
+                          _locationController.text.isEmpty
+                              ? 'Wybierz lokalizację turnieju'
+                              : _locationController.text,
+                          style: TextStyle(color: Colors.blue),
+                        ),
+                      ),
+                      Icon(Icons.arrow_forward_ios, color: Colors.blue),
+                    ],
+                  ),
+                ),
               ),
             ),
             SizedBox(height: 16),
-            ElevatedButton(
-              onPressed: _showAddPlayerDialog,
-              child: Text('Dodaj gracza'),
-              style: ElevatedButton.styleFrom(
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Expanded(
+                  child: ElevatedButton(
+                    onPressed: _showAddPlayerDialog,
+                    child: Text('Dodaj gracza', style: TextStyle(color: Colors.white)),
+                    style: ElevatedButton.styleFrom(
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      backgroundColor: Colors.blue,
+                      padding: EdgeInsets.symmetric(vertical: 16),
+                    ),
+                  ),
                 ),
-                padding: EdgeInsets.symmetric(vertical: 16),
-              ),
-            ),
-            SizedBox(height: 8),
-            ElevatedButton(
-              onPressed: _showAddGuestDialog,
-              child: Text('Dodaj gościa'),
-              style: ElevatedButton.styleFrom(
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
+                SizedBox(width: 16),
+                Expanded(
+                  child: ElevatedButton(
+                    onPressed: _showAddGuestDialog,
+                    child: Text('Dodaj gościa', style: TextStyle(color: Colors.white)),
+                    style: ElevatedButton.styleFrom(
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      backgroundColor: Colors.green,
+                      padding: EdgeInsets.symmetric(vertical: 16),
+                    ),
+                  ),
                 ),
-                padding: EdgeInsets.symmetric(vertical: 16),
-              ),
+              ],
             ),
             SizedBox(height: 16),
             Text(

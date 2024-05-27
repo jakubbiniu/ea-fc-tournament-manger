@@ -140,11 +140,11 @@ class _CreateTournamentPageGuestState extends State<CreateTournamentPageGuest> {
             ),
             ElevatedButton(
               onPressed: _showAddGuestDialog,
-              child: Text('Dodaj gracza'),
+              child: Text('Dodaj gracza', style: TextStyle(color: Colors.white)),
               style: ElevatedButton.styleFrom(
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(12),
-                ),
+                ), backgroundColor: Colors.blue,
                 padding: EdgeInsets.symmetric(vertical: 16),
               ),
             ),
