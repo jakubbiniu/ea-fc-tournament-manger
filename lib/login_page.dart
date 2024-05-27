@@ -43,12 +43,12 @@ class _LoginPageState extends State<LoginPage> {
         );
       }
     } on FirebaseAuthException catch (e) {
-      if (e.code == 'invalid-credential' || e.code == 'wrong-password') {
+      if (e.code == 'invalid-credential') {
         // Sprawdzenie, czy konto z podanym adresem email istnieje
         try {
           final List<String> signInMethods = await widget.auth.fetchSignInMethodsForEmail(_emailController.text);
           if (signInMethods.isEmpty) {
-            _showErrorSnackbar('Nie istnieje konto z podanym mailem.');
+            _showErrorSnackbar('Nie udało się zalogować');
           } else {
             _showErrorSnackbar('Podano złe hasło.');
           }
