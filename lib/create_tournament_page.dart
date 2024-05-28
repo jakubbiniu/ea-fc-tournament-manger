@@ -496,14 +496,17 @@ class _CreateTournamentPageState extends State<CreateTournamentPage> {
                         child: Row(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            Text(
-                              'Przeciągnij, aby utworzyć turniej',
-                              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                            Expanded(
+                              child: Text(
+                                'Przeciągnij, aby utworzyć turniej',
+                                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                                overflow: TextOverflow.ellipsis,
+                              ),
                             ),
                             SizedBox(width: 10),
                             Icon(Icons.arrow_forward, color: Colors.green),
                           ],
-                        ),
+                        )
                       ),
                       Positioned(
                         left: 0,
