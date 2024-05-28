@@ -1,16 +1,5 @@
-# ea_fc_tournament_manager
+# EA FC Tournament Manager
 
-A new Flutter project.
+Aplikacja do obsługi turniejów w EA FC (dawniej FIFA)
 
-## Getting Started
-
-This project is a starting point for a Flutter application.
-
-A few resources to get you started if this is your first Flutter project:
-
-- [Lab: Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Cookbook: Useful Flutter samples](https://docs.flutter.dev/cookbook)
-
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+Aplikacja wspomaga i automatyzuje przeprowadzanie turniejów w EA FC (dawniej FIFA). Można rozegrać turniej online lub w trybie kanapowym. Da się też ustawić lokalizację turnieju. Użytkownik może założyć konto (umożliwia to dostęp do historii turniejów) lub zagrać jako gość (bez zapisania historii turnieju w zdalnej bazie). Turnieje mogą być rozegrane solo lub w dwuosobowych zespołach. Każdy gracz ma możliwość wybrania klubu/reprezentacji. Kolejność wyboru ustalona jest przez losowanie wykonane przez admina. Podczas turnieju każdy gracz ma dostęp do aktualnego meczu, informacji o turnieju oraz wynikach i tabeli.
